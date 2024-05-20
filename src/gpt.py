@@ -26,19 +26,20 @@ class GPT:
             model='gpt-3.5-turbo',
             messages=messages
         )
-        return completion.choices[0].message
+        return completion.choices[0].message.content
 
     def query_intention(self, messages) -> Intention:
         prompt = open(f'{PROMPT_DIR}/intention.txt').read()
-        messages.insert(0, {'role': 'system', 'message': prompt})
+        messages.insert(0, {'role': 'system', 'content': prompt})
         response = self.query(messages).lower()
-        if response.contains('create'):
+        print(response)
+        if 'create' in response:
             return Intention.CREATE
-        elif response.contains('read'):
+        elif 'read' in response:
             return Intention.READ
-        elif response.contains('update'):
+        elif 'update' in response:
             return Intention.UPDATE
-        elif response.contains('delete'):
+        elif 'delete' in response:
             return Intention.DELETE
 
         return Intention.NONE

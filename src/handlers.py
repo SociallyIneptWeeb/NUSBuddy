@@ -38,7 +38,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     history = db.fetch_latest_messages_query(chat_id)
-    messages = [{'role': 'user' if msg[1] else 'assistant', 'message': msg[0]} for msg in history]
-    messages.append({'role': 'user', 'message': update.message.text})
+    messages = [{'role': 'user' if msg[1] else 'assistant', 'content': msg[0]} for msg in history]
+    messages.append({'role': 'user', 'content': update.message.text})
     intention = gpt.query_intention(messages)
     username = update.message.from_user.username
+    print(intention)
