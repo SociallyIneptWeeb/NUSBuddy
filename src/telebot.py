@@ -2,10 +2,11 @@ import asyncio
 from os import getenv
 
 from dotenv import load_dotenv
-from telegram.ext import ApplicationBuilder, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 
 from database import PostgresDb
-from handlers import handle_command
+from gpt import GPT
+from handlers import handle_start, handle_message, handle_unknown
 
 load_dotenv()
 
@@ -21,13 +22,19 @@ class Telebot:
             getenv('POSTGRES_PASSWORD')
         )
         self.db.connect()
+        self.gpt = GPT()
         self.app = ApplicationBuilder().token(self.token).build()
 
     def run(self):
-        # message_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message)
-        self.app.add_handler(MessageHandler(filters.COMMAND, handle_command))
-        # pass the db object to context for handlers
-        self.app.context_types.context.data = {'db': self.db}
+        self.app.add_handler(CommandHandler('start', handle_start))
+        self.app.add_handler(MessageHandler(filters.COMMAND, handle_unknown))
+        message_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message)
+        self.app.add_handler(message_handler)
+        # pass the db and gpt object to context for handlers
+        self.app.context_types.context.data = {
+            'db': self.db,
+            'gpt': self.gpt
+        }
         self.app.run_polling()
 
 
