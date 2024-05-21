@@ -7,4 +7,5 @@ These are the available intentions to detect and output:
 4. Delete
 5. None
 
-Only output the intention as a single word. For example, "Create" when the user asks to set a new deadline, or "None" if the user's message does not match any of the CRUD operations on deadlines.
+Only output the intention as a single word. For example, "Create" when the user asks to set a new deadline.
+Output "None" if the user's message does not match any of the CRUD operations ONLY on the users' deadlines. A normal conversation on other topics would also yield "None".

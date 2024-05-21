@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum
 from os import getenv
 
@@ -28,11 +29,11 @@ class GPT:
         )
         return completion.choices[0].message.content
 
-    def query_intention(self, messages) -> Intention:
+    def intention_query(self, messages) -> Intention:
         prompt = open(f'{PROMPT_DIR}/intention.txt').read()
+        messages = messages.copy()
         messages.insert(0, {'role': 'system', 'content': prompt})
         response = self.query(messages).lower()
-        print(response)
         if 'create' in response:
             return Intention.CREATE
         elif 'read' in response:
@@ -43,3 +44,11 @@ class GPT:
             return Intention.DELETE
 
         return Intention.NONE
+
+    def converse_query(self, messages, username):
+        now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
+        prompt = open(f'{PROMPT_DIR}/conversation.txt').read().format(now=now, username=username)
+        messages = messages.copy()
+        messages.insert(0, {'role': 'system', 'content': prompt})
+        response = self.query(messages)
+        return response

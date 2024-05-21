@@ -2,14 +2,13 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from database import PostgresDb
-from gpt import GPT
+from gpt import GPT, Intention
 
 
 async def handle_unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text(
         'Available commands:\n/start: Create a new account with your telegram handle as your username.',
         reply_to_message_id=update.message.id)
-    return
 
 
 async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -35,11 +34,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text(
             'You need to first create an account with the /start command.',
             reply_to_message_id=update.message.id)
-        return
 
+    user_msg = update.message.text
     history = db.fetch_latest_messages_query(chat_id)
     messages = [{'role': 'user' if msg[1] else 'assistant', 'content': msg[0]} for msg in history]
-    messages.append({'role': 'user', 'content': update.message.text})
-    intention = gpt.query_intention(messages)
-    username = update.message.from_user.username
-    print(intention)
+    messages.append({'role': 'user', 'content': user_msg})
+    db.create_message_query(chat_id, user_msg, True)
+    intention = gpt.intention_query(messages)
+
+    if intention == Intention.CREATE:
+        print(intention)
+    elif intention == Intention.READ:
+        print(intention)
+    elif intention == Intention.UPDATE:
+        print(intention)
+    elif intention == Intention.DELETE:
+        print(intention)
+    else:
+        response = gpt.converse_query(messages, update.message.from_user.username)
+        db.create_message_query(chat_id, response, False)
+        await update.effective_message.reply_text(
+            response,
+            reply_to_message_id=update.message.id)
