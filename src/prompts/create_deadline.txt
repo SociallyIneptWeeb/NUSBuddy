@@ -1,0 +1,10 @@
+Given the user's message to create a project or submission deadline, extract key information and output in a json format.
+The json object should have the following keys: "description" and "due_date".
+
+Example output:
+{
+    "description": "CS1101S project submission deadline",
+    "due_date": "2024-11-18"
+}
+
+The current date and time is %(now)s. Only output the json object.

@@ -79,3 +79,14 @@ class PostgresDb:
         )
         self.query(query, (user_id, text, from_user))
         self.conn.commit()
+
+    def create_deadline_query(self, chat_id, description, due_date):
+        user_id = self.get_userid_from_chatid(chat_id)
+        query = sql.SQL('INSERT INTO {table} ({field1}, {field2}, {field3}) VALUES(%s, %s, %s)').format(
+            table=sql.Identifier('deadlines'),
+            field1=sql.Identifier('user_id'),
+            field2=sql.Identifier('description'),
+            field3=sql.Identifier('due_date')
+        )
+        self.query(query, (user_id, description, due_date))
+        self.conn.commit()

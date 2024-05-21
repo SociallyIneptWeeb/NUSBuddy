@@ -1,5 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes
+import json
 
 from database import PostgresDb
 from gpt import GPT, Intention
@@ -43,7 +44,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     intention = gpt.intention_query(messages)
 
     if intention == Intention.CREATE:
-        print(intention)
+        # TODO: Enter into a ConversationHandler where missing information and confirmation is requested.
+        response = json.loads(gpt.create_deadline_query(user_msg))
+        db.create_deadline_query(chat_id, response['description'], response['due_date'])
+        await update.effective_message.reply_text(
+            f"Your deadline for {response['description']} on {response['due_date']} has been saved!",
+            reply_to_message_id=update.message.id)
     elif intention == Intention.READ:
         print(intention)
     elif intention == Intention.UPDATE:
