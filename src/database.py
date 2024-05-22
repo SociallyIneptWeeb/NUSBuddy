@@ -90,3 +90,15 @@ class PostgresDb:
         )
         self.query(query, (user_id, description, due_date))
         self.conn.commit()
+
+    def fetch_deadlines_query(self, chat_id, start_date, end_date):
+        user_id = self.get_userid_from_chatid(chat_id)
+        query = sql.SQL('SELECT {field1}, {field2} FROM {table} '
+                        'WHERE {field3} = %s AND ({field2} >= %s OR {field2} <= %s)').format(
+            table=sql.Identifier('deadlines'),
+            field1=sql.Identifier('description'),
+            field2=sql.Identifier('due_date'),
+            field3=sql.Identifier('user_id')
+        )
+        self.query(query, (user_id, start_date if start_date else '1900-1-1', end_date if end_date else '2100-12-30'))
+        return self.cursor.fetchall()

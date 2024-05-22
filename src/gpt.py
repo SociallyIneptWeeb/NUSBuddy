@@ -63,3 +63,10 @@ class GPT:
         messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': message}]
         response = self.query(messages, json=True)
         return response
+
+    def fetch_deadline_query(self, message):
+        now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
+        prompt = open(f'{PROMPT_DIR}/fetch_deadline.txt').read() % {'now': now}
+        messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': message}]
+        response = self.query(messages, json=True)
+        return response

@@ -1,0 +1,19 @@
+Given the user's message to fetch project or submission deadlines, extract key information and output in a json format.
+The json object should have the following keys: "description", "start_date" and "end_date".
+
+Example output:
+{
+    "description": "CS1101S project submission deadline",
+    "start_date": "2024-11-18",
+    "end_date": "2024-11-24"
+}
+
+If any of the key information is missing, fill in the value as null.
+For example if the user simply asks for all deadlines, example output:
+{
+    "description": null,
+    "start_date": null,
+    "end_date": null
+}
+
+The current date and time is %(now)s. Determine the start and end date to search in if a certain date range is specified by the user. Only output the json object.

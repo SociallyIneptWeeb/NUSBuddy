@@ -45,13 +45,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if intention == Intention.CREATE:
         # TODO: Enter into a ConversationHandler where missing information and confirmation is requested.
-        response = json.loads(gpt.create_deadline_query(user_msg))
-        db.create_deadline_query(chat_id, response['description'], response['due_date'])
+        deadline = json.loads(gpt.create_deadline_query(user_msg))
+        db.create_deadline_query(chat_id, deadline['description'], deadline['due_date'])
+        response = f"Your deadline for {deadline['description']} on {deadline['due_date']} has been saved!"
+        db.create_message_query(chat_id, response, False)
         await update.effective_message.reply_text(
-            f"Your deadline for {response['description']} on {response['due_date']} has been saved!",
+            response,
             reply_to_message_id=update.message.id)
     elif intention == Intention.READ:
-        print(intention)
+        deadline_info = json.loads(gpt.fetch_deadline_query(user_msg))
+        deadlines = db.fetch_deadlines_query(chat_id, deadline_info['start_date'], deadline_info['end_date'])
+        # TODO: Filter deadlines to display based on user's provided description if present
+        response = 'Here are the deadlines that matched your query:'
+        for deadline in deadlines:
+            response += f'\nDescription: {deadline[0]}. Due Date: {deadline[1].strftime("%B %d, %Y")}'
+        db.create_message_query(chat_id, response, False)
+        await update.effective_message.reply_text(
+            response,
+            reply_to_message_id=update.message.id)
     elif intention == Intention.UPDATE:
         print(intention)
     elif intention == Intention.DELETE:
