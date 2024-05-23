@@ -9,8 +9,6 @@ from openai.types.chat.completion_create_params import ResponseFormat
 load_dotenv()
 
 PROMPT_DIR = 'prompts'
-JSON_RESPONSE = ResponseFormat(type='json_object')
-TEXT_RESPONSE = ResponseFormat(type='text')
 
 
 class Intention(Enum):
@@ -29,7 +27,7 @@ class GPT:
         completion = self.llm.chat.completions.create(
             model='gpt-3.5-turbo',
             messages=messages,
-            response_format=JSON_RESPONSE if json else TEXT_RESPONSE
+            response_format=ResponseFormat(type='json_object') if json else ResponseFormat(type='text')
         )
         return completion.choices[0].message.content
 
@@ -64,9 +62,15 @@ class GPT:
         response = self.query(messages, json=True)
         return response
 
-    def fetch_deadline_query(self, message):
+    def extract_fetch_info_query(self, message):
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
-        prompt = open(f'{PROMPT_DIR}/fetch_deadline.txt').read() % {'now': now}
+        prompt = open(f'{PROMPT_DIR}/extract_fetch_info.txt').read() % {'now': now}
         messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': message}]
         response = self.query(messages, json=True)
+        return response
+
+    def filter_deadlines_query(self, deadlines, description):
+        prompt = open(f'{PROMPT_DIR}/filter_deadlines.txt').read().format(deadlines=deadlines)
+        messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': description}]
+        response = self.query(messages)
         return response

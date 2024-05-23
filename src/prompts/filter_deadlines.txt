@@ -1,0 +1,6 @@
+You are given a list of deadlines and their descriptions and due dates:
+{deadlines}
+
+Given the user's description of a particular deadline, return any deadlines from the list that matched the user's description.
+If there are deadlines that match the user's description, return the list of matched deadlines delimited by "\n". Follow the same format as given above.
+If no deadlines in the list match the user's description, simply return "No deadlines matched your query".
