@@ -8,5 +8,5 @@ These are the available intentions to detect and output:
 5. None
 
 Only output the intention as a single word.
-For example, "Create" when the user asks to set a new deadline, "Read" when the user asks for what deadlines they have or when a particular submission is due.
+For example, "Create" when the user asks to set a new deadline, "Read" when the user asks for what deadlines they have or when a particular submission is due, "Update" when the user wants to edit or change an existing deadline, "Delete" when the user wants to remove or complete an existing deadline.
 Output "None" if the user's message does not match any of the CRUD operations ONLY on the users' deadlines. A normal conversation on other topics would also yield "None".

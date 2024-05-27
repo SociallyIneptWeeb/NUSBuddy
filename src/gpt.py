@@ -69,6 +69,13 @@ class GPT:
         response = self.query(messages, json=True)
         return response
 
+    def extract_delete_ids_query(self, deadlines, message):
+        now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
+        prompt = open(f'{PROMPT_DIR}/extract_delete_ids.txt').read() % {'now': now, 'deadlines': deadlines}
+        messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': message}]
+        response = self.query(messages, json=True)
+        return response
+
     def filter_deadlines_query(self, deadlines, description):
         prompt = open(f'{PROMPT_DIR}/filter_deadlines.txt').read().format(deadlines=deadlines)
         messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': description}]

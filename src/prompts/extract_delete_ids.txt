@@ -1,0 +1,20 @@
+Given the following information:
+1. List of project or submission deadlines with ids, description and due dates
+2. User's message to delete deadlines
+
+Return the ids which correspond to the user's message and output in a json format.
+
+Example output:
+{
+    "ids": [3, 15]
+}
+
+If none of the deadlines in the given list match the user's message, return the following json object.
+{
+    "ids": []
+}
+
+List of deadlines:
+%(deadlines)s
+
+The current date and time is %(now)s. Only output the json object.

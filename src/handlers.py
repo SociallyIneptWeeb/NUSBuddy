@@ -35,6 +35,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text(
             'You need to first create an account with the /start command.',
             reply_to_message_id=update.message.id)
+        return
 
     user_msg = update.message.text
     history = db.fetch_latest_messages_query(chat_id)
@@ -56,7 +57,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             response = 'No deadlines matched your query.'
         else:
             deadlines_str = '\n'.join(
-                [f'{deadline[0]}. Due Date: {deadline[1].strftime("%B %d, %Y")}' for deadline in deadlines])
+                [f'{deadline[1]}. Due Date: {deadline[2].strftime("%B %d, %Y")}' for deadline in deadlines])
 
             response = gpt.filter_deadlines_query(deadlines_str, deadline_info['description']) \
                 if deadline_info['description'] else deadlines_str
@@ -64,7 +65,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif intention == Intention.UPDATE:
         print(intention)
     elif intention == Intention.DELETE:
-        print(intention)
+        deadlines = db.fetch_deadlines_query(chat_id, None, None)
+        if not deadlines:
+            response = 'There are no deadlines in the database to delete.'
+        else:
+            deadlines_str = '\n'.join(
+                [f'{d[0]}. {d[1]}. Due Date: {d[2].strftime("%B %d, %Y")}' for d in deadlines])
+            ids = json.loads(gpt.extract_delete_ids_query(deadlines_str, user_msg))['ids']
+            if not ids:
+                response = 'No deadlines matched your query.'
+            else:
+                deleted = db.delete_deadlines_query(ids)
+                response = 'The following deadlines has been deleted:\n' + '\n'.join(
+                    [f'{deadline[0]}. Due Date: {deadline[1].strftime("%B %d, %Y")}' for deadline in deleted])
+
     else:
         response = gpt.converse_query(messages, update.message.from_user.username)
 

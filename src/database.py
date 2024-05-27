@@ -93,12 +93,23 @@ class PostgresDb:
 
     def fetch_deadlines_query(self, chat_id, start_date, end_date):
         user_id = self.get_userid_from_chatid(chat_id)
-        query = sql.SQL('SELECT {field1}, {field2} FROM {table} '
-                        'WHERE {field3} = %s AND ({field2} >= %s OR {field2} <= %s)').format(
+        query = sql.SQL('SELECT {field1}, {field2}, {field3} FROM {table} '
+                        'WHERE {field4} = %s AND ({field3} >= %s OR {field3} <= %s)').format(
             table=sql.Identifier('deadlines'),
-            field1=sql.Identifier('description'),
-            field2=sql.Identifier('due_date'),
-            field3=sql.Identifier('user_id')
+            field1=sql.Identifier('id'),
+            field2=sql.Identifier('description'),
+            field3=sql.Identifier('due_date'),
+            field4=sql.Identifier('user_id')
         )
         self.query(query, (user_id, start_date if start_date else '1900-1-1', end_date if end_date else '2100-12-30'))
+        return self.cursor.fetchall()
+
+    def delete_deadlines_query(self, ids):
+        query = sql.SQL('DELETE FROM {table} WHERE {field1} = ANY(%s) RETURNING {field2}, {field3}').format(
+            table=sql.Identifier('deadlines'),
+            field1=sql.Identifier('id'),
+            field2=sql.Identifier('description'),
+            field3=sql.Identifier('due_date')
+        )
+        self.query(query, (ids,))
         return self.cursor.fetchall()
