@@ -1,6 +1,7 @@
-from telegram import Update
+from telegram import Update, constants
 from telegram.ext import ContextTypes
 import json
+import os
 
 from database import PostgresDb
 from gpt import GPT, Intention
@@ -27,7 +28,28 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_to_message_id=update.message.id)
 
 
+async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    whisper = context.data['whisper']
+    voice_file = await context.bot.get_file(update.message.voice.file_id)
+    filename = f'{update.message.voice.file_id}.ogg'
+    try:
+        await voice_file.download_to_drive(filename)
+        segments, _ = whisper.transcribe(filename)
+        speech = ''.join(map(lambda x: x.text, segments)).strip()
+        await update.message.reply_text(f"<i>Heard: \"{speech}\"</i>", parse_mode=constants.ParseMode.HTML,
+                                        reply_to_message_id=update.message.id)
+        await handle_query(update, context, speech)
+
+    finally:
+        if os.path.isfile(filename):
+            os.remove(filename)
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await handle_query(update, context, update.message.text)
+
+
+async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_msg):
     db: PostgresDb = context.data['db']
     gpt: GPT = context.data['gpt']
     chat_id = update.message.chat_id
@@ -37,7 +59,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_to_message_id=update.message.id)
         return
 
-    user_msg = update.message.text
     history = db.fetch_latest_messages_query(chat_id)
     messages = [{'role': 'user' if msg[1] else 'assistant', 'content': msg[0]} for msg in history]
     messages.append({'role': 'user', 'content': user_msg})

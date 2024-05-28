@@ -1,3 +1,4 @@
+faster-whisper
 psycopg2
 python-dotenv
 python-telegram-bot
