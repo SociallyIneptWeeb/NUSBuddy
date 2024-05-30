@@ -91,17 +91,34 @@ class PostgresDb:
         self.query(query, (user_id, description, due_date))
         self.conn.commit()
 
-    def fetch_deadlines_query(self, chat_id, start_date, end_date):
+    def fetch_deadlines_query(self, chat_id, start_date=None, end_date=None):
+        start_date = start_date if start_date else '1900-1-1'
+        end_date = end_date if end_date else '2100-12-30'
         user_id = self.get_userid_from_chatid(chat_id)
         query = sql.SQL('SELECT {field1}, {field2}, {field3} FROM {table} '
-                        'WHERE {field4} = %s AND ({field3} >= %s OR {field3} <= %s)').format(
+                        'WHERE {field4} = %s AND ({field3} >= %s AND {field3} <= %s) '
+                        'ORDER BY {field3} ASC').format(
             table=sql.Identifier('deadlines'),
             field1=sql.Identifier('id'),
             field2=sql.Identifier('description'),
             field3=sql.Identifier('due_date'),
             field4=sql.Identifier('user_id')
         )
-        self.query(query, (user_id, start_date if start_date else '1900-1-1', end_date if end_date else '2100-12-30'))
+        self.query(query, (user_id, start_date, end_date))
+        return self.cursor.fetchall()
+
+    def fetch_reminders_query(self, date):
+        query = sql.SQL('SELECT {table1}.{field1}, {table2}.{field2} FROM {table2} INNER JOIN {table1} '
+                        'ON {table2}.{field3} = {table1}.{field4} WHERE {table2}.{field5} = %s').format(
+            table1=sql.Identifier('users'),
+            table2=sql.Identifier('deadlines'),
+            field1=sql.Identifier('chat_id'),
+            field2=sql.Identifier('description'),
+            field3=sql.Identifier('user_id'),
+            field4=sql.Identifier('id'),
+            field5=sql.Identifier('due_date')
+        )
+        self.query(query, (date,))
         return self.cursor.fetchall()
 
     def delete_deadlines_query(self, ids):

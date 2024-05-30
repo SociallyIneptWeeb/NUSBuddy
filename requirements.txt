@@ -1,5 +1,5 @@
 faster-whisper
 psycopg2
 python-dotenv
-python-telegram-bot
+python-telegram-bot[job-queue]
 openai

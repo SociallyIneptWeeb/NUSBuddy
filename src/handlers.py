@@ -1,7 +1,10 @@
-from telegram import Update, constants
-from telegram.ext import ContextTypes
+import datetime
 import json
 import os
+from collections import defaultdict
+
+from telegram import Update, constants
+from telegram.ext import CallbackContext, ContextTypes
 
 from database import PostgresDb
 from gpt import GPT, Intention
@@ -14,7 +17,7 @@ async def handle_unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    db: PostgresDb = context.data['db']
+    db: PostgresDb = context.bot_data['db']
     if db.account_exists_query(update.message.chat_id):
         await update.effective_message.reply_text(
             'You have already created an account.',
@@ -24,12 +27,13 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = update.message.from_user.username
     db.create_user_account_query(username, update.message.chat_id)
     await update.effective_message.reply_text(
-        f'Welcome {username}! I will do my best to help you keep track of any deadlines!',
+        f'Welcome {username}! Let me know of any deadlines you may have and I will help you keep track of them! '
+        'Reminders for any deadlines will be sent a day before the due date at 8am.',
         reply_to_message_id=update.message.id)
 
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    whisper = context.data['whisper']
+    whisper = context.bot_data['whisper']
     voice_file = await context.bot.get_file(update.message.voice.file_id)
     filename = f'{update.message.voice.file_id}.ogg'
     try:
@@ -50,8 +54,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_msg):
-    db: PostgresDb = context.data['db']
-    gpt: GPT = context.data['gpt']
+    db: PostgresDb = context.bot_data['db']
+    gpt: GPT = context.bot_data['gpt']
     chat_id = update.message.chat_id
     if not db.account_exists_query(chat_id):
         await update.effective_message.reply_text(
@@ -86,7 +90,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
     elif intention == Intention.UPDATE:
         print(intention)
     elif intention == Intention.DELETE:
-        deadlines = db.fetch_deadlines_query(chat_id, None, None)
+        deadlines = db.fetch_deadlines_query(chat_id)
         if not deadlines:
             response = 'There are no deadlines in the database to delete.'
         else:
@@ -108,3 +112,16 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         await update.effective_message.reply_text(
             response,
             reply_to_message_id=update.message.id)
+
+
+async def daily_reminder(context: CallbackContext):
+    db: PostgresDb = context.bot_data['db']
+    tomorrow = datetime.date.today() + datetime.timedelta(days=1)
+    deadlines = db.fetch_reminders_query(date=tomorrow.isoformat())
+    user_deadlines = defaultdict(list)
+    for deadline in deadlines:
+        user_deadlines[deadline[0]].append(deadline[1])
+
+    for chat_id, deadlines in user_deadlines.items():
+        text = 'This is a reminder that the following deadlines are due tomorrow:\n'
+        await context.bot.sendMessage(chat_id, text + '\n'.join(deadlines))
