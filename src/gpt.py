@@ -32,7 +32,9 @@ class GPT:
         return completion.choices[0].message.content
 
     def intention_query(self, messages) -> Intention:
-        prompt = open(f'{PROMPT_DIR}/intention.txt').read()
+        with open(f'{PROMPT_DIR}/intention.txt') as infile:
+            prompt = infile.read()
+
         messages = messages.copy()
         messages.insert(0, {'role': 'system', 'content': prompt})
         response = self.query(messages).lower()
@@ -49,7 +51,9 @@ class GPT:
 
     def converse_query(self, messages, username):
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
-        prompt = open(f'{PROMPT_DIR}/conversation.txt').read().format(now=now, username=username)
+        with open(f'{PROMPT_DIR}/conversation.txt') as infile:
+            prompt = infile.read().format(now=now, username=username)
+
         messages = messages.copy()
         messages.insert(0, {'role': 'system', 'content': prompt})
         response = self.query(messages)
@@ -57,27 +61,35 @@ class GPT:
 
     def create_deadline_query(self, message):
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
-        prompt = open(f'{PROMPT_DIR}/create_deadline.txt').read() % {'now': now}
+        with open(f'{PROMPT_DIR}/create_deadline.txt') as infile:
+            prompt = infile.read() % {'now': now}
+
         messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': message}]
         response = self.query(messages, json=True)
         return response
 
     def extract_fetch_info_query(self, message):
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
-        prompt = open(f'{PROMPT_DIR}/extract_fetch_info.txt').read() % {'now': now}
+        with open(f'{PROMPT_DIR}/extract_fetch_info.txt') as infile:
+            prompt = infile.read() % {'now': now}
+
         messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': message}]
         response = self.query(messages, json=True)
         return response
 
     def extract_delete_ids_query(self, deadlines, message):
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
-        prompt = open(f'{PROMPT_DIR}/extract_delete_ids.txt').read() % {'now': now, 'deadlines': deadlines}
+        with open(f'{PROMPT_DIR}/extract_delete_ids.txt') as infile:
+            prompt = infile.read() % {'now': now, 'deadlines': deadlines}
+
         messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': message}]
         response = self.query(messages, json=True)
         return response
 
     def filter_deadlines_query(self, deadlines, description):
-        prompt = open(f'{PROMPT_DIR}/filter_deadlines.txt').read().format(deadlines=deadlines)
+        with open(f'{PROMPT_DIR}/filter_deadlines.txt') as infile:
+            prompt = infile.read().format(deadlines=deadlines)
+            
         messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': description}]
         response = self.query(messages)
         return response
