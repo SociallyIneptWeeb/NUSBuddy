@@ -18,7 +18,7 @@ class Intention(Enum):
     DELETE = 4
     NONE = 5
 
-
+# TODO: Factorise into subclasses
 class GPT:
     def __init__(self):
         self.llm = OpenAI(api_key=getenv('OPENAI_KEY'))
@@ -59,12 +59,13 @@ class GPT:
         response = self.query(messages)
         return response
 
-    def create_deadline_query(self, message):
+    def create_deadline_query(self, messages):
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
         with open(f'{PROMPT_DIR}/create_deadline.txt') as infile:
             prompt = infile.read() % {'now': now}
 
-        messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': message}]
+        messages = messages.copy()
+        messages.insert(0, {'role': 'system', 'content': prompt})
         response = self.query(messages, json=True)
         return response
 
@@ -77,12 +78,13 @@ class GPT:
         response = self.query(messages, json=True)
         return response
 
-    def extract_delete_ids_query(self, deadlines, message):
+    def extract_delete_ids_query(self, deadlines, messages):
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
         with open(f'{PROMPT_DIR}/extract_delete_ids.txt') as infile:
             prompt = infile.read() % {'now': now, 'deadlines': deadlines}
 
-        messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': message}]
+        messages = messages.copy()
+        messages.insert(0, {'role': 'system', 'content': prompt})
         response = self.query(messages, json=True)
         return response
 

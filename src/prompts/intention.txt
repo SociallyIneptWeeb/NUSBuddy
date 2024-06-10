@@ -6,3 +6,6 @@ Only output the intention as a single word. For example:
 3. "Update" when the user wants to edit or change an existing deadline.
 4. "Delete" when the user wants to remove or complete an existing deadline.
 5. "None" if the user's message does not match any of the CRUD operations ONLY on the users' deadlines. A normal conversation on other topics would also yield "None".
+
+If the user is responding to or confirming any of the CRUD operations, output the corresponding intention.
+For example, return "Create" if the user agrees that they want to create a new deadline.

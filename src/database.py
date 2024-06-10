@@ -1,7 +1,7 @@
 import psycopg2
 from psycopg2 import sql
 
-
+# TODO: Add new reminders table to handle custom reminders
 class PostgresDb:
     def __init__(self, db, host, port, user, password):
         self.db = db
@@ -57,7 +57,7 @@ class PostgresDb:
     def fetch_latest_messages_query(self, chat_id):
         user_id = self.get_userid_from_chatid(chat_id)
         query = sql.SQL('SELECT {field1}, {field2} FROM {table} WHERE {field3} = %s '
-                        'ORDER BY {field4} DESC LIMIT 3').format(
+                        'ORDER BY {field4} DESC LIMIT 10').format(
             table=sql.Identifier('messages'),
             field1=sql.Identifier('text'),
             field2=sql.Identifier('fromUser'),
@@ -105,6 +105,17 @@ class PostgresDb:
             field4=sql.Identifier('user_id')
         )
         self.query(query, (user_id, start_date, end_date))
+        return self.cursor.fetchall()
+
+    def fetch_deadlines_query_by_ids(self, ids):
+        query = sql.SQL('SELECT {field1}, {field2} FROM {table} '
+                        'WHERE {field3} = ANY(%s) ORDER BY {field2} ASC').format(
+            table=sql.Identifier('deadlines'),
+            field1=sql.Identifier('description'),
+            field2=sql.Identifier('due_date'),
+            field3=sql.Identifier('id')
+        )
+        self.query(query, (ids,))
         return self.cursor.fetchall()
 
     def fetch_reminders_query(self, date):

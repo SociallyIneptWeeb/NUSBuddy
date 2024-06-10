@@ -70,14 +70,21 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
     intention = gpt.intention_query(messages)
     response = None
     if intention == Intention.CREATE:
-        # TODO: Enter into a ConversationHandler where missing information and confirmation is requested.
-        deadline = json.loads(gpt.create_deadline_query(user_msg))
-        db.create_deadline_query(chat_id, deadline['description'], deadline['due_date'])
-        response = f"Your deadline for {deadline['description']} on {deadline['due_date']} has been saved!"
+        deadline = json.loads(gpt.create_deadline_query(messages))
+
+        if not deadline.get('description'):
+            response = 'Please provide a specific description for the deadline you want to create.'
+        elif not deadline.get('due_date'):
+            response = 'Please provide a specific due date for the deadline you want to create.'
+        elif not deadline.get('confirmation'):
+            response = f"Create deadline '{deadline['description']}' due on {deadline['due_date']}?"
+        else:
+            db.create_deadline_query(chat_id, deadline['description'], deadline['due_date'])
+            response = f"Your deadline for '{deadline['description']}' due on {deadline['due_date']} has been saved!"
 
     elif intention == Intention.READ:
         deadline_info = json.loads(gpt.extract_fetch_info_query(user_msg))
-        deadlines = db.fetch_deadlines_query(chat_id, deadline_info['start_date'], deadline_info['end_date'])
+        deadlines = db.fetch_deadlines_query(chat_id, deadline_info.get('start_date'), deadline_info.get('end_date'))
         if not deadlines:
             response = 'No deadlines matched your query.'
         else:
@@ -85,9 +92,10 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
                 [f'{deadline[1]}. Due Date: {deadline[2].strftime("%B %d, %Y")}' for deadline in deadlines])
 
             response = gpt.filter_deadlines_query(deadlines_str, deadline_info['description']) \
-                if deadline_info['description'] else deadlines_str
+                if deadline_info.get('description') else deadlines_str
 
     elif intention == Intention.UPDATE:
+        # TODO: Update deadline
         print(intention)
     elif intention == Intention.DELETE:
         deadlines = db.fetch_deadlines_query(chat_id)
@@ -96,14 +104,17 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         else:
             deadlines_str = '\n'.join(
                 [f'{d[0]}. {d[1]}. Due Date: {d[2].strftime("%B %d, %Y")}' for d in deadlines])
-            ids = json.loads(gpt.extract_delete_ids_query(deadlines_str, user_msg))['ids']
-            if not ids:
-                response = 'No deadlines matched your query.'
-            else:
-                deleted = db.delete_deadlines_query(ids)
-                response = 'The following deadlines has been deleted:\n' + '\n'.join(
-                    [f'{deadline[0]}. Due Date: {deadline[1].strftime("%B %d, %Y")}' for deadline in deleted])
+            delete_ids = json.loads(gpt.extract_delete_ids_query(deadlines_str, messages))
 
+            if not delete_ids.get('ids'):
+                response = 'No deadlines matched your query.'
+            elif not delete_ids.get('confirmation'):
+                deadlines_to_delete = db.fetch_deadlines_query_by_ids(delete_ids['ids'])
+                response = 'Are you sure to delete the following deadlines:\n' + '\n'.join(
+                    [f'{deadline[0]}. Due Date: {deadline[1].strftime("%B %d, %Y")}' for deadline in deadlines_to_delete])
+            else:
+                deleted = db.delete_deadlines_query(delete_ids['ids'])
+                response = f'Deleted {len(deleted)} deadlines.'
     else:
         response = gpt.converse_query(messages, update.message.from_user.username)
 
@@ -114,6 +125,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             reply_to_message_id=update.message.id)
 
 
+# TODO: Add custom reminder times
 async def daily_reminder(context: CallbackContext):
     db: PostgresDb = context.bot_data['db']
     tomorrow = datetime.date.today() + datetime.timedelta(days=1)

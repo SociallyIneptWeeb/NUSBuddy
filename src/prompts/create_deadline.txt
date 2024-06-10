@@ -1,10 +1,14 @@
-Given the user's message to create a project or submission deadline, extract key information and output in a json format.
-The json object should have the following keys: "description" and "due_date".
+Given the user's message to create a project or submission deadline, extract key information and output in a json format. Only consider the latest request.
+The json object should only have the following keys: "description", "due_date", and "confirmation".
+The "confirmation" key is a boolean value that should be false unless the user agrees that the information is correct.
 
 Example output:
 {
-    "description": "CS1101S project submission deadline",
-    "due_date": "2024-11-18"
+    "description": "CS1101S Project Submission",
+    "due_date": "2024-11-18",
+    "confirmation": false
 }
 
+If "description" and/or "due_date" information is missing or not specific, fill in the value as null and set "confirmation" to false.
+If the user agrees that the specified "description" and "due_date" information to be created is correct, set the "confirmation" key to true.
 The current date and time is %(now)s. Only output the json object.
