@@ -23,6 +23,7 @@ class DbQueryTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        cls.db.close()
         del cls.db
 
     def test_account(self):
