@@ -36,6 +36,14 @@ class PostgresDb:
         self.query(query, (chat_id,))
         return self.cursor.fetchone() is not None
 
+    def delete_user_account_query(self, chat_id):
+        query = sql.SQL('DELETE FROM {table} WHERE {field} = %s').format(
+            table=sql.Identifier('users'),
+            field=sql.Identifier('chat_id')
+        )
+        self.query(query, (chat_id,))
+        self.conn.commit()
+
     def create_user_account_query(self, username, chat_id):
         query = sql.SQL('INSERT INTO {table} ({field1}, {field2}) VALUES(%s, %s)').format(
             table=sql.Identifier('users'),

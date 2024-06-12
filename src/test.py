@@ -1,5 +1,37 @@
 import unittest
+from os import getenv
+
+from dotenv import load_dotenv
+
+from database import PostgresDb
 from gpt import GPT, Intention
+
+load_dotenv()
+
+
+class DbQueryTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.db = PostgresDb(
+            getenv('POSTGRES_DB'),
+            getenv('POSTGRES_HOST'),
+            int(getenv('POSTGRES_PORT')),
+            getenv('POSTGRES_USER'),
+            getenv('POSTGRES_PASSWORD')
+        )
+        cls.db.connect()
+
+    @classmethod
+    def tearDownClass(cls):
+        del cls.db
+
+    def test_account(self):
+        username = 'TestUsername'
+        chat_id = 1
+        self.db.create_user_account_query(username, chat_id)
+        self.assertTrue(self.db.account_exists_query(chat_id))
+        self.db.delete_user_account_query(chat_id)
+        self.assertFalse(self.db.account_exists_query(chat_id))
 
 
 class GPTQueryTest(unittest.TestCase):
