@@ -1,4 +1,5 @@
 faster-whisper
+prettytable
 psycopg2
 python-dotenv
 python-telegram-bot[job-queue]
