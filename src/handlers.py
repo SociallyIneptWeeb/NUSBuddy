@@ -1,5 +1,4 @@
 import datetime
-import json
 import os
 from collections import defaultdict
 from prettytable import PrettyTable, ALL
@@ -54,7 +53,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await handle_query(update, context, update.message.text)
 
 
-async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_msg):
+async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_msg: str):
     db: PostgresDb = context.bot_data['db']
     gpt: GPT = context.bot_data['gpt']
     chat_id = update.message.chat_id
@@ -73,7 +72,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
     parse_mode = None
 
     if intention == Intention.CREATE:
-        deadline = json.loads(gpt.create_deadline_query(messages))
+        deadline = gpt.create_deadline_query(messages)
 
         if not deadline.get('description'):
             response = 'Please provide a specific description for the deadline you want to create.'
@@ -86,7 +85,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             response = f"Your deadline for '{deadline['description']}' due on {deadline['due_date']} has been saved!"
 
     elif intention == Intention.READ:
-        deadline_info = json.loads(gpt.extract_fetch_info_query(user_msg))
+        deadline_info = gpt.extract_fetch_info_query(user_msg)
         deadlines = db.fetch_deadlines_query(chat_id, deadline_info.get('start_date'), deadline_info.get('end_date'))
         if not deadlines:
             response = 'No deadlines matched your query.'
@@ -111,7 +110,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         else:
             deadlines_str = '\n'.join(
                 [f'{d[0]}. {d[1]}. Due Date: {d[2].strftime("%B %d, %Y")}' for d in deadlines])
-            delete_ids = json.loads(gpt.extract_delete_ids_query(deadlines_str, messages))
+            delete_ids = gpt.extract_delete_ids_query(deadlines_str, messages)
 
             if not delete_ids.get('ids'):
                 response = 'No deadlines matched your query.'

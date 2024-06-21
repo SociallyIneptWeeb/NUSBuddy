@@ -1,6 +1,8 @@
+import json
 from datetime import datetime
 from enum import Enum
 from os import getenv
+from typing import Optional, TypedDict
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -18,12 +20,35 @@ class Intention(Enum):
     DELETE = 4
     NONE = 5
 
+
+class GPTMessageType(TypedDict):
+    role: str
+    content: str
+
+
+class DeadlineCreationType(TypedDict):
+    description: str
+    due_date: str
+    confirmation: bool
+
+
+class FetchInfoType(TypedDict):
+    description: str
+    start_date: str
+    end_date: str
+
+
+class DeleteIdsType(TypedDict):
+    ids: list[int]
+    confirmation: bool
+
+
 # TODO: Factorise into subclasses
 class GPT:
     def __init__(self):
         self.llm = OpenAI(api_key=getenv('OPENAI_KEY'))
 
-    def query(self, messages, json=False):
+    def query(self, messages: list, json: Optional[bool] = False) -> str:
         completion = self.llm.chat.completions.create(
             model='gpt-3.5-turbo',
             messages=messages,
@@ -31,7 +56,7 @@ class GPT:
         )
         return completion.choices[0].message.content
 
-    def intention_query(self, messages) -> Intention:
+    def intention_query(self, messages: list[GPTMessageType]) -> Intention:
         with open(f'{PROMPT_DIR}/intention.txt') as infile:
             prompt = infile.read()
 
@@ -49,49 +74,44 @@ class GPT:
 
         return Intention.NONE
 
-    def converse_query(self, messages, username):
+    def converse_query(self, messages: list[GPTMessageType], username: str) -> str:
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
         with open(f'{PROMPT_DIR}/conversation.txt') as infile:
             prompt = infile.read().format(now=now, username=username)
 
         messages = messages.copy()
         messages.insert(0, {'role': 'system', 'content': prompt})
-        response = self.query(messages)
-        return response
+        return self.query(messages)
 
-    def create_deadline_query(self, messages):
+    def create_deadline_query(self, messages: list[GPTMessageType]) -> DeadlineCreationType:
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
         with open(f'{PROMPT_DIR}/create_deadline.txt') as infile:
             prompt = infile.read() % {'now': now}
 
         messages = messages.copy()
         messages.insert(0, {'role': 'system', 'content': prompt})
-        response = self.query(messages, json=True)
-        return response
+        return json.loads(self.query(messages, json=True))
 
-    def extract_fetch_info_query(self, message):
+    def extract_fetch_info_query(self, message: str) -> FetchInfoType:
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
         with open(f'{PROMPT_DIR}/extract_fetch_info.txt') as infile:
             prompt = infile.read() % {'now': now}
 
         messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': message}]
-        response = self.query(messages, json=True)
-        return response
+        return json.loads(self.query(messages, json=True))
 
-    def extract_delete_ids_query(self, deadlines, messages):
+    def extract_delete_ids_query(self, deadlines: str, messages: list[GPTMessageType]) -> DeleteIdsType:
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
         with open(f'{PROMPT_DIR}/extract_delete_ids.txt') as infile:
             prompt = infile.read() % {'now': now, 'deadlines': deadlines}
 
         messages = messages.copy()
         messages.insert(0, {'role': 'system', 'content': prompt})
-        response = self.query(messages, json=True)
-        return response
+        return json.loads(self.query(messages, json=True))
 
-    def filter_deadlines_query(self, deadlines, description):
+    def filter_deadlines_query(self, deadlines: str, description: str) -> str:
         with open(f'{PROMPT_DIR}/filter_deadlines.txt') as infile:
             prompt = infile.read().format(deadlines=deadlines)
             
         messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': description}]
-        response = self.query(messages)
-        return response
+        return self.query(messages)

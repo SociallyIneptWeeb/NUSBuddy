@@ -1,9 +1,13 @@
+from typing import Optional
+
 import psycopg2
 from psycopg2 import sql
+from datetime import datetime
+
 
 # TODO: Add new reminders table to handle custom reminders
 class PostgresDb:
-    def __init__(self, db, host, port, user, password):
+    def __init__(self, db: str, host: str, port: int, user: str, password: str):
         self.db = db
         self.host = host
         self.port = port
@@ -25,10 +29,10 @@ class PostgresDb:
         self.cursor.close()
         self.conn.close()
 
-    def query(self, query, vals):
-        return self.cursor.execute(query, vals)
+    def query(self, query: sql.Composed, vals: tuple):
+        self.cursor.execute(query, vals)
 
-    def account_exists_query(self, chat_id):
+    def account_exists_query(self, chat_id: int) -> bool:
         query = sql.SQL('SELECT 1 FROM {table} WHERE {field} = %s').format(
             table=sql.Identifier('users'),
             field=sql.Identifier('chat_id')
@@ -36,7 +40,7 @@ class PostgresDb:
         self.query(query, (chat_id,))
         return self.cursor.fetchone() is not None
 
-    def delete_user_account_query(self, chat_id):
+    def delete_user_account_query(self, chat_id: int):
         query = sql.SQL('DELETE FROM {table} WHERE {field} = %s').format(
             table=sql.Identifier('users'),
             field=sql.Identifier('chat_id')
@@ -44,7 +48,7 @@ class PostgresDb:
         self.query(query, (chat_id,))
         self.conn.commit()
 
-    def create_user_account_query(self, username, chat_id):
+    def create_user_account_query(self, username: str, chat_id: int):
         query = sql.SQL('INSERT INTO {table} ({field1}, {field2}) VALUES(%s, %s)').format(
             table=sql.Identifier('users'),
             field1=sql.Identifier('username'),
@@ -53,7 +57,7 @@ class PostgresDb:
         self.query(query, (username, chat_id))
         self.conn.commit()
 
-    def get_userid_from_chatid(self, chat_id):
+    def get_userid_from_chatid(self, chat_id: int) -> int:
         query = sql.SQL('SELECT {field1} FROM {table} WHERE {field2} = %s').format(
             table=sql.Identifier('users'),
             field1=sql.Identifier('id'),
@@ -62,7 +66,7 @@ class PostgresDb:
         self.query(query, (chat_id,))
         return self.cursor.fetchone()[0]
 
-    def fetch_latest_messages_query(self, chat_id):
+    def fetch_latest_messages_query(self, chat_id: int) -> list[tuple[str, bool]]:
         user_id = self.get_userid_from_chatid(chat_id)
         query = sql.SQL('SELECT {field1}, {field2} FROM {table} WHERE {field3} = %s '
                         'ORDER BY {field4} DESC LIMIT 10').format(
@@ -77,7 +81,7 @@ class PostgresDb:
         messages.reverse()
         return messages
 
-    def create_message_query(self, chat_id, text, from_user):
+    def create_message_query(self, chat_id: int, text: str, from_user: bool):
         user_id = self.get_userid_from_chatid(chat_id)
         query = sql.SQL('INSERT INTO {table} ({field1}, {field2}, {field3}) VALUES(%s, %s, %s)').format(
             table=sql.Identifier('messages'),
@@ -88,7 +92,7 @@ class PostgresDb:
         self.query(query, (user_id, text, from_user))
         self.conn.commit()
 
-    def create_deadline_query(self, chat_id, description, due_date):
+    def create_deadline_query(self, chat_id: int, description: str, due_date: str):
         user_id = self.get_userid_from_chatid(chat_id)
         query = sql.SQL('INSERT INTO {table} ({field1}, {field2}, {field3}) VALUES(%s, %s, %s)').format(
             table=sql.Identifier('deadlines'),
@@ -99,7 +103,11 @@ class PostgresDb:
         self.query(query, (user_id, description, due_date))
         self.conn.commit()
 
-    def fetch_deadlines_query(self, chat_id, start_date=None, end_date=None):
+    def fetch_deadlines_query(
+            self,
+            chat_id: int,
+            start_date: Optional[str] = None,
+            end_date: Optional[str] = None) -> list[tuple[int, str, datetime]]:
         start_date = start_date if start_date else '1900-1-1'
         end_date = end_date if end_date else '2100-12-30'
         user_id = self.get_userid_from_chatid(chat_id)
@@ -115,7 +123,7 @@ class PostgresDb:
         self.query(query, (user_id, start_date, end_date))
         return self.cursor.fetchall()
 
-    def fetch_deadlines_query_by_ids(self, ids):
+    def fetch_deadlines_query_by_ids(self, ids: list[int]) -> list[tuple[str, datetime]]:
         query = sql.SQL('SELECT {field1}, {field2} FROM {table} '
                         'WHERE {field3} = ANY(%s) ORDER BY {field2} ASC').format(
             table=sql.Identifier('deadlines'),
@@ -126,7 +134,7 @@ class PostgresDb:
         self.query(query, (ids,))
         return self.cursor.fetchall()
 
-    def fetch_reminders_query(self, date):
+    def fetch_reminders_query(self, date: str) -> list[tuple[int, str]]:
         query = sql.SQL('SELECT {table1}.{field1}, {table2}.{field2} FROM {table2} INNER JOIN {table1} '
                         'ON {table2}.{field3} = {table1}.{field4} WHERE {table2}.{field5} = %s').format(
             table1=sql.Identifier('users'),
@@ -140,7 +148,7 @@ class PostgresDb:
         self.query(query, (date,))
         return self.cursor.fetchall()
 
-    def delete_deadlines_query(self, ids):
+    def delete_deadlines_query(self, ids: list[int]) -> list[tuple[str, datetime]]:
         query = sql.SQL('DELETE FROM {table} WHERE {field1} = ANY(%s) RETURNING {field2}, {field3}').format(
             table=sql.Identifier('deadlines'),
             field1=sql.Identifier('id'),
