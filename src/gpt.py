@@ -111,7 +111,24 @@ class GPT:
 
     def filter_deadlines_query(self, deadlines: str, description: str) -> str:
         with open(f'{PROMPT_DIR}/filter_deadlines.txt') as infile:
-            prompt = infile.read().format(deadlines=deadlines)
-            
+            prompt = infile.read() % {'deadlines': deadlines}
+
         messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': description}]
-        return self.query(messages)
+        return self.query(messages, json=True)
+
+    def extract_update_description_query(self, messages):
+        with open(f'{PROMPT_DIR}/extract_update_description.txt') as infile:
+            prompt = infile.read()
+
+        messages = messages.copy()
+        messages.insert(0, {'role': 'system', 'content': prompt})
+        return self.query(messages, json=True)
+
+    def extract_update_info_query(self, messages):
+        now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
+        with open(f'{PROMPT_DIR}/extract_update_info.txt') as infile:
+            prompt = infile.read() % {'now': now}
+
+        messages = messages.copy()
+        messages.insert(0, {'role': 'system', 'content': prompt})
+        return self.query(messages, json=True)

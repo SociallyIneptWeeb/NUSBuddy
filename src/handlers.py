@@ -1,5 +1,6 @@
 import datetime
 import os
+import json
 from collections import defaultdict
 from prettytable import PrettyTable, ALL
 
@@ -79,7 +80,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         elif not deadline.get('due_date'):
             response = 'Please provide a specific due date for the deadline you want to create.'
         elif not deadline.get('confirmation'):
-            response = f"Create deadline '{deadline['description']}' due on {deadline['due_date']}?"
+            response = f"Are you sure to create deadline '{deadline['description']}' due on {deadline['due_date']}?"
         else:
             db.create_deadline_query(chat_id, deadline['description'], deadline['due_date'])
             response = f"Your deadline for '{deadline['description']}' due on {deadline['due_date']} has been saved!"
@@ -87,24 +88,53 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
     elif intention == Intention.READ:
         deadline_info = gpt.extract_fetch_info_query(user_msg)
         deadlines = db.fetch_deadlines_query(chat_id, deadline_info.get('start_date'), deadline_info.get('end_date'))
+
         if not deadlines:
             response = 'No deadlines matched your query.'
         else:
-            table = PrettyTable(['Deadline', 'Due Date'], align='l', hrules=ALL)
-            table.max_width['Deadline'] = 20
-            table.add_rows([[deadline[1], deadline[2].strftime("%B %d, %Y")] for deadline in deadlines])
-
-            deadlines_str = f'```\n{table.get_string()}```'
-            parse_mode = constants.ParseMode.MARKDOWN_V2
-
-            response = gpt.filter_deadlines_query(deadlines_str, deadline_info['description']) \
-                if deadline_info.get('description') else deadlines_str
+            if not deadline_info.get('description'):
+                response = f'```\n{create_table(deadlines)}```'
+                parse_mode = constants.ParseMode.MARKDOWN_V2
+            elif not (deadline_ids := json.loads(gpt.filter_deadlines_query(deadlines, deadline_info['description'])).get('ids')):
+                response = 'No deadlines matched your query.'
+            else:
+                filtered_deadlines = db.fetch_deadlines_query_by_ids(deadline_ids)
+                response = f'```\n{create_table(filtered_deadlines)}```'
+                parse_mode = constants.ParseMode.MARKDOWN_V2
 
     elif intention == Intention.UPDATE:
-        # TODO: Update deadline
-        print(intention)
+        deadlines = db.fetch_deadlines_query(chat_id)
+
+        if not deadlines:
+            response = 'There are no deadlines in the database to update.'
+        else:
+            # Extract description of the deadline to be updated
+            deadline_info = json.loads(gpt.extract_update_description_query(messages))
+
+            if not deadline_info.get('old_description'):
+                response = 'Please provide a specific description of the deadline you want to update.'
+            elif len(deadline_id := json.loads(gpt.filter_deadlines_query(deadlines, deadline_info['old_description'])).get('ids')) != 1:
+                # Check if description provided exists in the database
+                response = 'No deadlines matched your query. Please provide a more specific description of the ' \
+                           'deadline you want to update.'
+            else:
+                deadline = db.fetch_deadlines_query_by_ids(deadline_id)[0]
+
+                # Extract new description or new due date of the deadline
+                update_info = json.loads(gpt.extract_update_info_query(messages))
+
+                if not update_info.get('new_description') and not update_info.get('new_due_date'):
+                    response = 'Please provide a new description or due date for the deadline you want to update.'
+                elif not update_info.get('confirmation'):
+                    response = f"Are you sure to update deadline '{deadline[1]}' due on {deadline[2]}" \
+                               f" to '{update_info['new_description'] or deadline[1]}' due on {update_info['new_due_date'] or deadline[2]}?"
+                else:
+                    db.update_deadline_query(deadline_id[0], update_info['new_description'], update_info['new_due_date'])
+                    response = f'Updated deadline.'
+
     elif intention == Intention.DELETE:
         deadlines = db.fetch_deadlines_query(chat_id)
+
         if not deadlines:
             response = 'There are no deadlines in the database to delete.'
         else:
@@ -116,12 +146,8 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
                 response = 'No deadlines matched your query.'
             elif not delete_ids.get('confirmation'):
                 deadlines_to_delete = db.fetch_deadlines_query_by_ids(delete_ids['ids'])
-
-                table = PrettyTable(['Deadline', 'Due Date'], align='l', hrules=ALL)
-                table.max_width['Deadline'] = 20
-                table.add_rows([[deadline[0], deadline[1].strftime("%B %d, %Y")] for deadline in deadlines_to_delete])
-
-                response = f'```\nAre you sure to delete the following deadlines:\n{table.get_string()}```'
+                response = f'```\nAre you sure to delete the following deadlines:\n' \
+                           f'{create_table(deadlines_to_delete)}```'
                 parse_mode = constants.ParseMode.MARKDOWN_V2
             else:
                 deleted = db.delete_deadlines_query(delete_ids['ids'])
@@ -135,6 +161,15 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             response,
             parse_mode=parse_mode,
             reply_to_message_id=update.message.id)
+
+
+def create_table(deadlines) -> str:
+    table = PrettyTable(['Deadline', 'Due Date'], align='l', hrules=ALL)
+    table.max_width['Deadline'] = 20
+    table.max_width['Due Date'] = 15
+    table.add_rows([[deadline[1], deadline[2].strftime("%B %d, %Y")] for deadline in deadlines])
+
+    return table.get_string()
 
 
 # TODO: Add custom reminder times

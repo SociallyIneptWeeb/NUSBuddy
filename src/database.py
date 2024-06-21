@@ -123,13 +123,13 @@ class PostgresDb:
         self.query(query, (user_id, start_date, end_date))
         return self.cursor.fetchall()
 
-    def fetch_deadlines_query_by_ids(self, ids: list[int]) -> list[tuple[str, datetime]]:
-        query = sql.SQL('SELECT {field1}, {field2} FROM {table} '
-                        'WHERE {field3} = ANY(%s) ORDER BY {field2} ASC').format(
+    def fetch_deadlines_query_by_ids(self, ids):
+        query = sql.SQL('SELECT {field1}, {field2}, {field3} FROM {table} '
+                        'WHERE {field1} = ANY(%s) ORDER BY {field3} ASC').format(
             table=sql.Identifier('deadlines'),
-            field1=sql.Identifier('description'),
-            field2=sql.Identifier('due_date'),
-            field3=sql.Identifier('id')
+            field1=sql.Identifier('id'),
+            field2=sql.Identifier('description'),
+            field3=sql.Identifier('due_date'),
         )
         self.query(query, (ids,))
         return self.cursor.fetchall()
@@ -157,3 +157,14 @@ class PostgresDb:
         )
         self.query(query, (ids,))
         return self.cursor.fetchall()
+
+    def update_deadline_query(self, id, description, due_date):
+        query = sql.SQL('UPDATE {table} SET {field1} = COALESCE(%s, {field1}), {field2} = COALESCE(%s, {field2}) '
+                        'WHERE {field3} = %s').format(
+            table=sql.Identifier('deadlines'),
+            field1=sql.Identifier('description'),
+            field2=sql.Identifier('due_date'),
+            field3=sql.Identifier('id')
+        )
+        self.query(query, (description, due_date, id))
+        self.conn.commit()
