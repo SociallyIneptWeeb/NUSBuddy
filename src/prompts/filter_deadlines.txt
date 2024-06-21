@@ -1,6 +1,19 @@
-You are given a list of deadlines and their descriptions and due dates:
-{deadlines}
+Given the following information:
+1. List of project or submission deadlines with ids, description and due dates
+2. User's message to delete deadlines
 
-Given the user's description of a particular deadline, return any deadlines from the list that matched the user's description.
-If there are deadlines that match the user's description, return the list of matched deadlines delimited by "\n". Follow the same format as given above.
-If no deadlines in the list match the user's description, simply return "No deadlines matched your query".
+List of deadlines:
+%(deadlines)s
+
+Given the user's description of a particular deadline, return a list of ids of the deadlines that matches the user's description.
+Example output:
+{
+    "ids": [3, 15]
+}
+
+If none of the deadlines in the given list match the user's message, return the following json object:
+{
+    "ids": []
+}
+
+Only output the json object.
