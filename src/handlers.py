@@ -1,6 +1,5 @@
 import datetime
 import os
-import json
 from collections import defaultdict
 from prettytable import PrettyTable, ALL
 
@@ -95,7 +94,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             if not deadline_info.get('description'):
                 response = f'```\n{create_table(deadlines)}```'
                 parse_mode = constants.ParseMode.MARKDOWN_V2
-            elif not (deadline_ids := json.loads(gpt.filter_deadlines_query(deadlines, deadline_info['description'])).get('ids')):
+            elif not (deadline_ids := gpt.filter_deadlines_query(deadlines, deadline_info['description']).get('ids')):
                 response = 'No deadlines matched your query.'
             else:
                 filtered_deadlines = db.fetch_deadlines_query_by_ids(deadline_ids)
@@ -109,11 +108,11 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             response = 'There are no deadlines in the database to update.'
         else:
             # Extract description of the deadline to be updated
-            deadline_info = json.loads(gpt.extract_update_description_query(messages))
+            deadline_info = gpt.extract_update_description_query(messages)
 
             if not deadline_info.get('old_description'):
                 response = 'Please provide a specific description of the deadline you want to update.'
-            elif len(deadline_id := json.loads(gpt.filter_deadlines_query(deadlines, deadline_info['old_description'])).get('ids')) != 1:
+            elif len(deadline_id := gpt.filter_deadlines_query(deadlines, deadline_info['old_description']).get('ids')) != 1:
                 # Check if description provided exists in the database
                 response = 'No deadlines matched your query. Please provide a more specific description of the ' \
                            'deadline you want to update.'
@@ -121,7 +120,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
                 deadline = db.fetch_deadlines_query_by_ids(deadline_id)[0]
 
                 # Extract new description or new due date of the deadline
-                update_info = json.loads(gpt.extract_update_info_query(messages))
+                update_info = gpt.extract_update_info_query(messages)
 
                 if not update_info.get('new_description') and not update_info.get('new_due_date'):
                     response = 'Please provide a new description or due date for the deadline you want to update.'
@@ -138,9 +137,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         if not deadlines:
             response = 'There are no deadlines in the database to delete.'
         else:
-            deadlines_str = '\n'.join(
-                [f'{d[0]}. {d[1]}. Due Date: {d[2].strftime("%B %d, %Y")}' for d in deadlines])
-            delete_ids = gpt.extract_delete_ids_query(deadlines_str, messages)
+            delete_ids = gpt.extract_delete_ids_query(deadlines, messages)
 
             if not delete_ids.get('ids'):
                 response = 'No deadlines matched your query.'

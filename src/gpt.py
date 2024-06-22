@@ -43,6 +43,20 @@ class DeleteIdsType(TypedDict):
     confirmation: bool
 
 
+class FilterDeadlinesType(TypedDict):
+    ids: list[int]
+
+
+class UpdateDescriptionType(TypedDict):
+    old_description: str
+
+
+class UpdateInfoType(TypedDict):
+    new_description: str
+    new_due_date: str
+    confirmation: bool
+
+
 # TODO: Factorise into subclasses
 class GPT:
     def __init__(self):
@@ -100,7 +114,7 @@ class GPT:
         messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': message}]
         return json.loads(self.query(messages, json=True))
 
-    def extract_delete_ids_query(self, deadlines: str, messages: list[GPTMessageType]) -> DeleteIdsType:
+    def extract_delete_ids_query(self, deadlines: list[tuple[int, str, datetime]], messages: list[GPTMessageType]) -> DeleteIdsType:
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
         with open(f'{PROMPT_DIR}/extract_delete_ids.txt') as infile:
             prompt = infile.read() % {'now': now, 'deadlines': deadlines}
@@ -109,26 +123,26 @@ class GPT:
         messages.insert(0, {'role': 'system', 'content': prompt})
         return json.loads(self.query(messages, json=True))
 
-    def filter_deadlines_query(self, deadlines: str, description: str) -> str:
+    def filter_deadlines_query(self, deadlines: list[tuple[int, str, datetime]], description: str) -> FilterDeadlinesType:
         with open(f'{PROMPT_DIR}/filter_deadlines.txt') as infile:
             prompt = infile.read() % {'deadlines': deadlines}
 
         messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': description}]
-        return self.query(messages, json=True)
+        return json.loads(self.query(messages, json=True))
 
-    def extract_update_description_query(self, messages):
+    def extract_update_description_query(self, messages: list[GPTMessageType]) -> UpdateDescriptionType:
         with open(f'{PROMPT_DIR}/extract_update_description.txt') as infile:
             prompt = infile.read()
 
         messages = messages.copy()
         messages.insert(0, {'role': 'system', 'content': prompt})
-        return self.query(messages, json=True)
+        return json.loads(self.query(messages, json=True))
 
-    def extract_update_info_query(self, messages):
+    def extract_update_info_query(self, messages: list[GPTMessageType]) -> UpdateInfoType:
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
         with open(f'{PROMPT_DIR}/extract_update_info.txt') as infile:
             prompt = infile.read() % {'now': now}
 
         messages = messages.copy()
         messages.insert(0, {'role': 'system', 'content': prompt})
-        return self.query(messages, json=True)
+        return json.loads(self.query(messages, json=True))

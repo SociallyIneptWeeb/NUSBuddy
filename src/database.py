@@ -123,7 +123,7 @@ class PostgresDb:
         self.query(query, (user_id, start_date, end_date))
         return self.cursor.fetchall()
 
-    def fetch_deadlines_query_by_ids(self, ids):
+    def fetch_deadlines_query_by_ids(self, ids: list[int]) -> list[tuple[int, str, datetime]]:
         query = sql.SQL('SELECT {field1}, {field2}, {field3} FROM {table} '
                         'WHERE {field1} = ANY(%s) ORDER BY {field3} ASC').format(
             table=sql.Identifier('deadlines'),
@@ -158,7 +158,7 @@ class PostgresDb:
         self.query(query, (ids,))
         return self.cursor.fetchall()
 
-    def update_deadline_query(self, id, description, due_date):
+    def update_deadline_query(self, id: int, description: Optional[str], due_date: Optional[str]):
         query = sql.SQL('UPDATE {table} SET {field1} = COALESCE(%s, {field1}), {field2} = COALESCE(%s, {field2}) '
                         'WHERE {field3} = %s').format(
             table=sql.Identifier('deadlines'),
