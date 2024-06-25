@@ -81,7 +81,10 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         elif not deadline.get('confirmation'):
             response = f"Are you sure to create deadline '{deadline['description']}' due on {deadline['due_date']}?"
         else:
-            db.create_deadline_query(chat_id, deadline['description'], deadline['due_date'])
+            deadline_id = db.create_deadline_query(chat_id, deadline['description'], deadline['due_date'])
+            db.create_reminders_query(
+                deadline_id,
+                datetime.datetime.combine(datetime.date.fromisoformat(deadline['due_date']), datetime.time(8)))
             response = f"Your deadline for '{deadline['description']}' due on {deadline['due_date']} has been saved!"
 
     elif intention == Intention.READ:
@@ -170,14 +173,17 @@ def create_table(deadlines) -> str:
 
 
 # TODO: Add custom reminder times
-async def daily_reminder(context: CallbackContext):
+async def hourly_reminder(context: CallbackContext):
     db: PostgresDb = context.bot_data['db']
-    tomorrow = datetime.date.today() + datetime.timedelta(days=1)
-    deadlines = db.fetch_reminders_query(date=tomorrow.isoformat())
+    deadlines = db.fetch_reminders_query(datetime.datetime.now().replace(microsecond=0, second=0, minute=0))
+
     user_deadlines = defaultdict(list)
     for deadline in deadlines:
-        user_deadlines[deadline[0]].append(deadline[1])
+        user_deadlines[deadline[0]].append(deadline[1:])
 
     for chat_id, deadlines in user_deadlines.items():
-        text = 'This is a reminder that the following deadlines are due tomorrow:\n'
-        await context.bot.sendMessage(chat_id, text + '\n'.join(deadlines))
+        text = f'```\nThis is a reminder of the following deadlines:\n{create_table(deadlines)}```'
+        await context.bot.sendMessage(
+            chat_id,
+            text=text,
+            parse_mode=constants.ParseMode.MARKDOWN_V2)
