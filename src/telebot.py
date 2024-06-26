@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+from pytz import timezone
 from os import getenv
 
 from dotenv import load_dotenv
@@ -49,7 +50,7 @@ class Telebot:
         job_queue.run_repeating(
             callback=hourly_reminder,
             interval=datetime.timedelta(hours=1),
-            first=start)
+            first=timezone('Asia/Singapore').localize(start))
 
     def run(self):
         self.app.run_polling()
