@@ -21,6 +21,10 @@ class Intention(Enum):
     NONE = 5
 
 
+class IntentionType(TypedDict):
+    intention: Intention
+
+
 class GPTMessageType(TypedDict):
     role: str
     content: str
@@ -70,23 +74,16 @@ class GPT:
         )
         return completion.choices[0].message.content
 
-    def intention_query(self, messages: list[GPTMessageType]) -> Intention:
+    def intention_query(self, messages: list[GPTMessageType]) -> IntentionType:
         with open(f'{PROMPT_DIR}/intention.txt') as infile:
             prompt = infile.read()
 
         messages = messages.copy()
         messages.insert(0, {'role': 'system', 'content': prompt})
-        response = self.query(messages).lower()
-        if 'create' in response:
-            return Intention.CREATE
-        elif 'read' in response:
-            return Intention.READ
-        elif 'update' in response:
-            return Intention.UPDATE
-        elif 'delete' in response:
-            return Intention.DELETE
+        response = json.loads(self.query(messages, json=True))
+        response['intention'] = Intention[response.get('intention', 'NONE').upper()]
 
-        return Intention.NONE
+        return response
 
     def converse_query(self, messages: list[GPTMessageType], username: str) -> str:
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
