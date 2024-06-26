@@ -159,6 +159,21 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         deleted = db.delete_deadlines_query(delete_ids['ids'])
         response['text'] = f'Deleted {len(deleted)} deadlines.'
 
+    def create_reminder():
+        print('create_reminder')
+
+    def read_reminder():
+        print('read_reminder')
+
+    def update_reminder():
+        print('update_reminder')
+
+    def delete_reminder():
+        print('delete_reminder')
+
+    def converse():
+        response['text'] = gpt.converse_query(messages, update.message.from_user.username)
+
     db: PostgresDb = context.bot_data['db']
     gpt: GPT = context.bot_data['gpt']
     chat_id = update.message.chat_id
@@ -172,19 +187,31 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
     messages = [{'role': 'user' if msg[1] else 'assistant', 'content': msg[0]} for msg in history]
     messages.append({'role': 'user', 'content': user_msg})
     db.create_message_query(chat_id, user_msg, True)
-    intention = gpt.intention_query(messages)['intention']
-    response = {'text': None, 'parse_mode': None}
+    intention = gpt.intention_query(messages)
+    response = {'text': '', 'parse_mode': None}
 
-    if intention == Intention.CREATE:
-        create_deadline()
-    elif intention == Intention.READ:
-        read_deadline()
-    elif intention == Intention.UPDATE:
-        update_deadline()
-    elif intention == Intention.DELETE:
-        delete_deadline()
+    if intention.get('target') == 'deadline':
+        action_map = {
+            Intention.CREATE: create_deadline,
+            Intention.READ: read_deadline,
+            Intention.UPDATE: update_deadline,
+            Intention.DELETE: delete_deadline,
+            Intention.NONE: converse
+        }
+        action_map.get(intention['action'], converse)()
+
+    elif intention.get('target') == 'reminder':
+        action_map = {
+            Intention.CREATE: create_reminder,
+            Intention.READ: read_reminder,
+            Intention.UPDATE: update_reminder,
+            Intention.DELETE: delete_reminder,
+            Intention.NONE: converse
+        }
+        action_map.get(intention['action'], converse)()
+
     else:
-        response['text'] = gpt.converse_query(messages, update.message.from_user.username)
+        converse()
 
     if response['text']:
         db.create_message_query(chat_id, response['text'], False)

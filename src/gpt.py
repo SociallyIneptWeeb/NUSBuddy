@@ -22,7 +22,8 @@ class Intention(Enum):
 
 
 class IntentionType(TypedDict):
-    intention: Intention
+    action: Intention
+    target: str
 
 
 class GPTMessageType(TypedDict):
@@ -81,7 +82,7 @@ class GPT:
         messages = messages.copy()
         messages.insert(0, {'role': 'system', 'content': prompt})
         response = json.loads(self.query(messages, json=True))
-        response['intention'] = Intention[response.get('intention', 'NONE').upper()]
+        response['action'] = Intention[response.get('action', 'NONE').upper()]
 
         return response
 
