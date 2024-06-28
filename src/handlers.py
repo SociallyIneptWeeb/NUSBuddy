@@ -282,9 +282,9 @@ def create_deadline_table(deadlines) -> str:
 
 
 def create_reminder_table(reminders) -> str:
-    table = PrettyTable(['Deadline', 'Reminder Time'], align='l', hrules=ALL)
-    table.max_width['Deadline'] = 20
-    table.max_width['Reminder Time'] = 15
+    table = PrettyTable(['Deadline', 'Upcoming Reminders'], align='l', hrules=ALL)
+    table.max_width['Deadline'] = 15
+    table.max_width['Upcoming Reminders'] = 20
     table.add_rows([[reminder[0], '\n\n'.join([dt.strftime("%a %d %b %Y, %H:%M") for dt in reminder[1]])]
                     for reminder in reminders])
 

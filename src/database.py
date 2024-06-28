@@ -187,9 +187,9 @@ class PostgresDb:
         self.conn.commit()
 
     def fetch_reminders_query_by_deadline_ids(self, ids: list[int]) -> list[str, list[datetime]]:
-        query = sql.SQL('SELECT {table1}.{field1}, ARRAY_AGG({table2}.{field2}) FROM {table1} '
-                        'INNER JOIN {table2} ON {table1}.{field3} = {table2}.{field4} WHERE {field4} = ANY(%s) '
-                        'GROUP BY {table1}.{field1} ORDER BY {table1}.{field1} ASC').format(
+        query = sql.SQL('SELECT {table1}.{field1}, ARRAY_AGG({table2}.{field2} ORDER BY {table2}.{field2}) FROM {table1} '
+                        'INNER JOIN {table2} ON {table1}.{field3} = {table2}.{field4} '
+                        'WHERE {field2} >= %s AND {field4} = ANY(%s) GROUP BY {table1}.{field1}').format(
             table1=sql.Identifier('deadlines'),
             table2=sql.Identifier('reminders'),
             field1=sql.Identifier('description'),
@@ -197,5 +197,5 @@ class PostgresDb:
             field3=sql.Identifier('id'),
             field4=sql.Identifier('deadline_id')
         )
-        self.query(query, (ids,))
+        self.query(query, (datetime.now(), ids,))
         return self.cursor.fetchall()
