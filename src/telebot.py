@@ -8,7 +8,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 
 from database import PostgresDb
 from gpt import GPT
-from handlers import daily_reminder, handle_start, handle_message, handle_unknown, handle_voice
+from handlers import hourly_reminder, handle_start, handle_message, handle_unknown, handle_voice
 
 load_dotenv()
 
@@ -43,10 +43,13 @@ class Telebot:
         }
         job_queue = self.app.job_queue
         # for testing purposes
-        # job_queue.run_once(callback=daily_reminder, when=5)
-        job_queue.run_daily(
-            callback=daily_reminder,
-            time=datetime.time(hour=0, minute=0, second=0))  # 8am SGT == 12am UTC
+        # job_queue.run_once(callback=hourly_reminder, when=5)
+
+        start = datetime.datetime.now().replace(microsecond=0, second=0, minute=0) + datetime.timedelta(hours=1)
+        job_queue.run_repeating(
+            callback=hourly_reminder,
+            interval=datetime.timedelta(hours=1),
+            first=start.astimezone())
 
     def run(self):
         self.app.run_polling()

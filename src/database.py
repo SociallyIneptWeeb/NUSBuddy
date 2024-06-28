@@ -92,24 +92,26 @@ class PostgresDb:
         self.query(query, (user_id, text, from_user))
         self.conn.commit()
 
-    def create_deadline_query(self, chat_id: int, description: str, due_date: str):
+    def create_deadline_query(self, chat_id: int, description: str, due_date: str) -> int:
         user_id = self.get_userid_from_chatid(chat_id)
-        query = sql.SQL('INSERT INTO {table} ({field1}, {field2}, {field3}) VALUES(%s, %s, %s)').format(
+        query = sql.SQL('INSERT INTO {table} ({field1}, {field2}, {field3}) VALUES(%s, %s, %s) RETURNING {field4}').format(
             table=sql.Identifier('deadlines'),
             field1=sql.Identifier('user_id'),
             field2=sql.Identifier('description'),
-            field3=sql.Identifier('due_date')
+            field3=sql.Identifier('due_date'),
+            field4=sql.Identifier('id')
         )
         self.query(query, (user_id, description, due_date))
         self.conn.commit()
+        return self.cursor.fetchone()[0]
 
     def fetch_deadlines_query(
             self,
             chat_id: int,
             start_date: Optional[str] = None,
             end_date: Optional[str] = None) -> list[tuple[int, str, datetime]]:
-        start_date = start_date if start_date else '1900-1-1'
-        end_date = end_date if end_date else '2100-12-30'
+        start_date = start_date or '1900-1-1'
+        end_date = end_date or '2100-12-30'
         user_id = self.get_userid_from_chatid(chat_id)
         query = sql.SQL('SELECT {field1}, {field2}, {field3} FROM {table} '
                         'WHERE {field4} = %s AND ({field3} >= %s AND {field3} <= %s) '
@@ -134,18 +136,24 @@ class PostgresDb:
         self.query(query, (ids,))
         return self.cursor.fetchall()
 
-    def fetch_reminders_query(self, date: str) -> list[tuple[int, str]]:
-        query = sql.SQL('SELECT {table1}.{field1}, {table2}.{field2} FROM {table2} INNER JOIN {table1} '
-                        'ON {table2}.{field3} = {table1}.{field4} WHERE {table2}.{field5} = %s').format(
+    def fetch_reminders_query(self, timestamp: datetime) -> list[tuple[int, int, str, datetime]]:
+        query = sql.SQL('SELECT {table1}.{field1}, {table2}.{field2}, {table2}.{field3}, {table2}.{field4} FROM {table1} '
+                        'INNER JOIN {table2} ON {table1}.{field2} = {table2}.{field5} '
+                        'INNER JOIN {table3} ON {table2}.{field2} = {table3}.{field6} '
+                        'WHERE {table3}.{field7} = %s').format(
             table1=sql.Identifier('users'),
             table2=sql.Identifier('deadlines'),
+            table3=sql.Identifier('reminders'),
             field1=sql.Identifier('chat_id'),
-            field2=sql.Identifier('description'),
-            field3=sql.Identifier('user_id'),
-            field4=sql.Identifier('id'),
-            field5=sql.Identifier('due_date')
+            field2=sql.Identifier('id'),
+            field3=sql.Identifier('description'),
+            field4=sql.Identifier('due_date'),
+            field5=sql.Identifier('user_id'),
+            field6=sql.Identifier('deadline_id'),
+            field7=sql.Identifier('reminder_time')
         )
-        self.query(query, (date,))
+
+        self.query(query, (timestamp,))
         return self.cursor.fetchall()
 
     def delete_deadlines_query(self, ids: list[int]) -> list[tuple[str, datetime]]:
@@ -168,3 +176,26 @@ class PostgresDb:
         )
         self.query(query, (description, due_date, id))
         self.conn.commit()
+
+    def create_reminders_query(self, deadline_id: int, reminder_time: datetime):
+        query = sql.SQL('INSERT INTO {table} ({field1}, {field2}) VALUES(%s, %s)').format(
+            table=sql.Identifier('reminders'),
+            field1=sql.Identifier('deadline_id'),
+            field2=sql.Identifier('reminder_time'),
+        )
+        self.query(query, (deadline_id, reminder_time))
+        self.conn.commit()
+
+    def fetch_reminders_query_by_deadline_ids(self, ids: list[int]) -> list[str, list[datetime]]:
+        query = sql.SQL('SELECT {table1}.{field1}, ARRAY_AGG({table2}.{field2} ORDER BY {table2}.{field2}) FROM {table1} '
+                        'INNER JOIN {table2} ON {table1}.{field3} = {table2}.{field4} '
+                        'WHERE {field2} >= %s AND {field4} = ANY(%s) GROUP BY {table1}.{field1}').format(
+            table1=sql.Identifier('deadlines'),
+            table2=sql.Identifier('reminders'),
+            field1=sql.Identifier('description'),
+            field2=sql.Identifier('reminder_time'),
+            field3=sql.Identifier('id'),
+            field4=sql.Identifier('deadline_id')
+        )
+        self.query(query, (datetime.now(), ids,))
+        return self.cursor.fetchall()

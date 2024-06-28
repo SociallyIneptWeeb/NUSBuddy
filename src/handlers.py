@@ -54,6 +54,177 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_msg: str):
+    def create_deadline():
+        deadline = gpt.create_deadline_query(messages)
+
+        if not deadline.get('description'):
+            response['text'] = 'Please provide a specific description for the deadline you want to create.'
+            return
+
+        if not deadline.get('due_date'):
+            response['text'] = 'Please provide a specific due date for the deadline you want to create.'
+            return
+
+        if not deadline.get('confirmation'):
+            response['text'] = f"Are you sure to create deadline '{deadline['description']}' due on {deadline['due_date']}?"
+            return
+
+        deadline_id = db.create_deadline_query(chat_id, deadline['description'], deadline['due_date'])
+        db.create_reminders_query(
+            deadline_id,
+            datetime.datetime.combine(datetime.date.fromisoformat(deadline['due_date']), datetime.time(8)))
+        response['text'] = (f"Your deadline for '{deadline['description']}' due on {deadline['due_date']} "
+                            f"has been saved! You will be reminded a day before the due date at 8am.")
+
+    def read_deadline():
+        deadline_info = gpt.extract_fetch_info_query(user_msg)
+        deadlines = db.fetch_deadlines_query(chat_id, deadline_info.get('start_date'), deadline_info.get('end_date'))
+
+        if not deadlines:
+            response['text'] = 'No deadlines matched your query.'
+            return
+
+        if not deadline_info.get('description'):
+            response['text'] = f'```\n{create_deadline_table(deadlines)}```'
+            response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
+            return
+
+        deadline_ids = gpt.filter_deadlines_query(deadlines, deadline_info['description']).get('ids')
+        if not deadline_ids:
+            response['text'] = 'No deadlines matched your query.'
+            return
+
+        filtered_deadlines = db.fetch_deadlines_query_by_ids(deadline_ids)
+        response['text'] = f'```\n{create_deadline_table(filtered_deadlines)}```'
+        response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
+
+    def update_deadline():
+        deadlines = db.fetch_deadlines_query(chat_id)
+
+        if not deadlines:
+            response['text'] = 'There are no deadlines in the database to update.'
+            return
+
+        # Extract description of the deadline to be updated
+        deadline_info = gpt.extract_update_description_query(messages)
+
+        if not deadline_info.get('old_description'):
+            response['text'] = 'Please provide a specific description of the deadline you want to update.'
+            return
+
+        deadline_id = gpt.filter_deadlines_query(deadlines, deadline_info['old_description']).get('ids')
+        if len(deadline_id) != 1:
+            # Check if description provided exists in the database
+            response['text'] = ('No deadlines matched your query. Please provide a more specific description of the '
+                                'deadline you want to update.')
+            return
+
+        deadline = db.fetch_deadlines_query_by_ids(deadline_id)[0]
+
+        # Extract new description or new due date of the deadline
+        update_info = gpt.extract_update_info_query(messages)
+
+        if not update_info.get('new_description') and not update_info.get('new_due_date'):
+            response['text'] = 'Please provide a new description or due date for the deadline you want to update.'
+            return
+
+        if not update_info.get('confirmation'):
+            response['text'] = (f"Are you sure to update deadline '{deadline[1]}' due on {deadline[2]} "
+                                f"to '{update_info['new_description'] or deadline[1]}' due on "
+                                f"{update_info['new_due_date'] or deadline[2]}?")
+            return
+
+        db.update_deadline_query(deadline_id[0], update_info['new_description'], update_info['new_due_date'])
+        response['text'] = f'Updated deadline.'
+
+    def delete_deadline():
+        deadlines = db.fetch_deadlines_query(chat_id)
+
+        if not deadlines:
+            response['text'] = 'There are no deadlines in the database to delete.'
+            return
+
+        delete_ids = gpt.extract_delete_ids_query(deadlines, messages)
+
+        if not delete_ids.get('ids'):
+            response['text'] = 'No deadlines matched your query.'
+            return
+
+        if not delete_ids.get('confirmation'):
+            deadlines_to_delete = db.fetch_deadlines_query_by_ids(delete_ids['ids'])
+            response['text'] = (f'Are you sure to delete the following deadlines:'
+                                f'```\n{create_deadline_table(deadlines_to_delete)}```')
+            response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
+            return
+
+        deleted = db.delete_deadlines_query(delete_ids['ids'])
+        response['text'] = f'Deleted {len(deleted)} deadlines.'
+
+    def create_reminder():
+        reminder = gpt.create_reminder_query(messages)
+
+        if not reminder.get('deadline_description'):
+            response['text'] = 'Please provide a specific description of the deadline you want to be reminded.'
+            return
+
+        deadlines = db.fetch_deadlines_query(chat_id)
+        deadline_id = gpt.filter_deadlines_query(deadlines, reminder['deadline_description']).get('ids')
+        if len(deadline_id) != 1:
+            # Check if description provided exists in the database
+            response['text'] = ('No deadlines matched your query. Please provide a more specific description of the '
+                                'deadline you want to reminded.')
+            return
+
+        deadline = db.fetch_deadlines_query_by_ids(deadline_id)[0]
+
+        if not reminder.get('reminder_time'):
+            response['text'] = (f"Please provide a specific date and time you want to be reminded of '{deadline[1]}' "
+                                f"due on {deadline[2]}.")
+            return
+
+        reminder_time = datetime.datetime.fromisoformat(reminder['reminder_time'])
+
+        if not reminder.get('confirmation'):
+            response['text'] = (f"Are you sure you want to be reminded at {reminder_time.strftime('%a %d %b %Y, %H:%M')} "
+                                f"for '{deadline[1]}' due on {deadline[2]}?")
+            return
+
+        db.create_reminders_query(deadline[0], reminder_time)
+        response['text'] = (f"You will be reminded on {reminder_time.strftime('%a %d %b %Y, %H:%M')} "
+                            f"for '{deadline[1]}' due on {deadline[2]}.")
+
+    def read_reminder():
+        deadline_info = gpt.extract_fetch_info_query(user_msg)
+        deadlines = db.fetch_deadlines_query(chat_id, deadline_info.get('start_date'), deadline_info.get('end_date'))
+
+        if not deadlines:
+            response['text'] = 'No deadlines matched your query.'
+            return
+
+        if not deadline_info.get('description'):
+            reminders = db.fetch_reminders_query_by_deadline_ids([deadline[0] for deadline in deadlines])
+            response['text'] = f'```\n{create_reminder_table(reminders)}```'
+            response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
+            return
+
+        deadline_ids = gpt.filter_deadlines_query(deadlines, deadline_info['description']).get('ids')
+        if not deadline_ids:
+            response['text'] = 'No deadlines matched your query.'
+            return
+
+        reminders = db.fetch_reminders_query_by_deadline_ids(deadline_ids)
+        response['text'] = f'```\n{create_reminder_table(reminders)}```'
+        response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
+
+    def update_reminder():
+        print('update_reminder')
+
+    def delete_reminder():
+        print('delete_reminder')
+
+    def converse():
+        response['text'] = gpt.converse_query(messages, update.message.from_user.username)
+
     db: PostgresDb = context.bot_data['db']
     gpt: GPT = context.bot_data['gpt']
     chat_id = update.message.chat_id
@@ -68,116 +239,70 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
     messages.append({'role': 'user', 'content': user_msg})
     db.create_message_query(chat_id, user_msg, True)
     intention = gpt.intention_query(messages)
-    response = None
-    parse_mode = None
+    response = {'text': '', 'parse_mode': None}
 
-    if intention == Intention.CREATE:
-        deadline = gpt.create_deadline_query(messages)
+    if intention.get('target') == 'deadline':
+        action_map = {
+            Intention.CREATE: create_deadline,
+            Intention.READ: read_deadline,
+            Intention.UPDATE: update_deadline,
+            Intention.DELETE: delete_deadline,
+            Intention.NONE: converse
+        }
+        action_map.get(intention['action'], converse)()
 
-        if not deadline.get('description'):
-            response = 'Please provide a specific description for the deadline you want to create.'
-        elif not deadline.get('due_date'):
-            response = 'Please provide a specific due date for the deadline you want to create.'
-        elif not deadline.get('confirmation'):
-            response = f"Are you sure to create deadline '{deadline['description']}' due on {deadline['due_date']}?"
-        else:
-            db.create_deadline_query(chat_id, deadline['description'], deadline['due_date'])
-            response = f"Your deadline for '{deadline['description']}' due on {deadline['due_date']} has been saved!"
+    elif intention.get('target') == 'reminder':
+        action_map = {
+            Intention.CREATE: create_reminder,
+            Intention.READ: read_reminder,
+            Intention.UPDATE: update_reminder,
+            Intention.DELETE: delete_reminder,
+            Intention.NONE: converse
+        }
+        action_map.get(intention['action'], converse)()
 
-    elif intention == Intention.READ:
-        deadline_info = gpt.extract_fetch_info_query(user_msg)
-        deadlines = db.fetch_deadlines_query(chat_id, deadline_info.get('start_date'), deadline_info.get('end_date'))
-
-        if not deadlines:
-            response = 'No deadlines matched your query.'
-        else:
-            if not deadline_info.get('description'):
-                response = f'```\n{create_table(deadlines)}```'
-                parse_mode = constants.ParseMode.MARKDOWN_V2
-            elif not (deadline_ids := gpt.filter_deadlines_query(deadlines, deadline_info['description']).get('ids')):
-                response = 'No deadlines matched your query.'
-            else:
-                filtered_deadlines = db.fetch_deadlines_query_by_ids(deadline_ids)
-                response = f'```\n{create_table(filtered_deadlines)}```'
-                parse_mode = constants.ParseMode.MARKDOWN_V2
-
-    elif intention == Intention.UPDATE:
-        deadlines = db.fetch_deadlines_query(chat_id)
-
-        if not deadlines:
-            response = 'There are no deadlines in the database to update.'
-        else:
-            # Extract description of the deadline to be updated
-            deadline_info = gpt.extract_update_description_query(messages)
-
-            if not deadline_info.get('old_description'):
-                response = 'Please provide a specific description of the deadline you want to update.'
-            elif len(deadline_id := gpt.filter_deadlines_query(deadlines, deadline_info['old_description']).get('ids')) != 1:
-                # Check if description provided exists in the database
-                response = 'No deadlines matched your query. Please provide a more specific description of the ' \
-                           'deadline you want to update.'
-            else:
-                deadline = db.fetch_deadlines_query_by_ids(deadline_id)[0]
-
-                # Extract new description or new due date of the deadline
-                update_info = gpt.extract_update_info_query(messages)
-
-                if not update_info.get('new_description') and not update_info.get('new_due_date'):
-                    response = 'Please provide a new description or due date for the deadline you want to update.'
-                elif not update_info.get('confirmation'):
-                    response = f"Are you sure to update deadline '{deadline[1]}' due on {deadline[2]}" \
-                               f" to '{update_info['new_description'] or deadline[1]}' due on {update_info['new_due_date'] or deadline[2]}?"
-                else:
-                    db.update_deadline_query(deadline_id[0], update_info['new_description'], update_info['new_due_date'])
-                    response = f'Updated deadline.'
-
-    elif intention == Intention.DELETE:
-        deadlines = db.fetch_deadlines_query(chat_id)
-
-        if not deadlines:
-            response = 'There are no deadlines in the database to delete.'
-        else:
-            delete_ids = gpt.extract_delete_ids_query(deadlines, messages)
-
-            if not delete_ids.get('ids'):
-                response = 'No deadlines matched your query.'
-            elif not delete_ids.get('confirmation'):
-                deadlines_to_delete = db.fetch_deadlines_query_by_ids(delete_ids['ids'])
-                response = f'```\nAre you sure to delete the following deadlines:\n' \
-                           f'{create_table(deadlines_to_delete)}```'
-                parse_mode = constants.ParseMode.MARKDOWN_V2
-            else:
-                deleted = db.delete_deadlines_query(delete_ids['ids'])
-                response = f'Deleted {len(deleted)} deadlines.'
     else:
-        response = gpt.converse_query(messages, update.message.from_user.username)
+        converse()
 
-    if response:
-        db.create_message_query(chat_id, response, False)
+    if response['text']:
+        db.create_message_query(chat_id, response['text'], False)
         await update.effective_message.reply_text(
-            response,
-            parse_mode=parse_mode,
+            response['text'],
+            parse_mode=response['parse_mode'],
             reply_to_message_id=update.message.id)
 
 
-def create_table(deadlines) -> str:
+def create_deadline_table(deadlines) -> str:
     table = PrettyTable(['Deadline', 'Due Date'], align='l', hrules=ALL)
     table.max_width['Deadline'] = 20
     table.max_width['Due Date'] = 15
-    table.add_rows([[deadline[1], deadline[2].strftime("%B %d, %Y")] for deadline in deadlines])
+    table.add_rows([[deadline[1], deadline[2].strftime("%a %d %b %Y")] for deadline in deadlines])
+
+    return table.get_string()
+
+
+def create_reminder_table(reminders) -> str:
+    table = PrettyTable(['Deadline', 'Upcoming Reminders'], align='l', hrules=ALL)
+    table.max_width['Deadline'] = 15
+    table.max_width['Upcoming Reminders'] = 20
+    table.add_rows([[reminder[0], '\n\n'.join([dt.strftime("%a %d %b %Y, %H:%M") for dt in reminder[1]])]
+                    for reminder in reminders])
 
     return table.get_string()
 
 
 # TODO: Add custom reminder times
-async def daily_reminder(context: CallbackContext):
+async def hourly_reminder(context: CallbackContext):
     db: PostgresDb = context.bot_data['db']
-    tomorrow = datetime.date.today() + datetime.timedelta(days=1)
-    deadlines = db.fetch_reminders_query(date=tomorrow.isoformat())
+    deadlines = db.fetch_reminders_query(datetime.datetime.now().replace(microsecond=0, second=0, minute=0))
+
     user_deadlines = defaultdict(list)
     for deadline in deadlines:
-        user_deadlines[deadline[0]].append(deadline[1])
+        user_deadlines[deadline[0]].append(deadline[1:])
 
     for chat_id, deadlines in user_deadlines.items():
-        text = 'This is a reminder that the following deadlines are due tomorrow:\n'
-        await context.bot.sendMessage(chat_id, text + '\n'.join(deadlines))
+        text = f'This is a reminder for the following deadlines:```\n{create_deadline_table(deadlines)}```'
+        await context.bot.sendMessage(
+            chat_id,
+            text=text,
+            parse_mode=constants.ParseMode.MARKDOWN_V2)

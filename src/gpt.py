@@ -21,6 +21,11 @@ class Intention(Enum):
     NONE = 5
 
 
+class IntentionType(TypedDict):
+    action: Intention
+    target: str
+
+
 class GPTMessageType(TypedDict):
     role: str
     content: str
@@ -57,6 +62,12 @@ class UpdateInfoType(TypedDict):
     confirmation: bool
 
 
+class ReminderCreationType(TypedDict):
+    deadline_description: str
+    reminder_time: str
+    confirmation: bool
+
+
 # TODO: Factorise into subclasses
 class GPT:
     def __init__(self):
@@ -70,23 +81,16 @@ class GPT:
         )
         return completion.choices[0].message.content
 
-    def intention_query(self, messages: list[GPTMessageType]) -> Intention:
+    def intention_query(self, messages: list[GPTMessageType]) -> IntentionType:
         with open(f'{PROMPT_DIR}/intention.txt') as infile:
             prompt = infile.read()
 
         messages = messages.copy()
         messages.insert(0, {'role': 'system', 'content': prompt})
-        response = self.query(messages).lower()
-        if 'create' in response:
-            return Intention.CREATE
-        elif 'read' in response:
-            return Intention.READ
-        elif 'update' in response:
-            return Intention.UPDATE
-        elif 'delete' in response:
-            return Intention.DELETE
+        response = json.loads(self.query(messages, json=True))
+        response['action'] = Intention[response.get('action', 'NONE').upper()]
 
-        return Intention.NONE
+        return response
 
     def converse_query(self, messages: list[GPTMessageType], username: str) -> str:
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
@@ -141,6 +145,15 @@ class GPT:
     def extract_update_info_query(self, messages: list[GPTMessageType]) -> UpdateInfoType:
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
         with open(f'{PROMPT_DIR}/extract_update_info.txt') as infile:
+            prompt = infile.read() % {'now': now}
+
+        messages = messages.copy()
+        messages.insert(0, {'role': 'system', 'content': prompt})
+        return json.loads(self.query(messages, json=True))
+
+    def create_reminder_query(self, messages: list[GPTMessageType]) -> ReminderCreationType:
+        now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
+        with open(f'{PROMPT_DIR}/create_reminder.txt') as infile:
             prompt = infile.read() % {'now': now}
 
         messages = messages.copy()
