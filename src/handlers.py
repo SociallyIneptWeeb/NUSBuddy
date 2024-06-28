@@ -160,7 +160,37 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         response['text'] = f'Deleted {len(deleted)} deadlines.'
 
     def create_reminder():
-        print('create_reminder')
+        reminder = gpt.create_reminder_query(messages)
+
+        if not reminder.get('deadline_description'):
+            response['text'] = 'Please provide a specific description of the deadline you want to be reminded.'
+            return
+
+        deadlines = db.fetch_deadlines_query(chat_id)
+        deadline_id = gpt.filter_deadlines_query(deadlines, reminder['deadline_description']).get('ids')
+        if len(deadline_id) != 1:
+            # Check if description provided exists in the database
+            response['text'] = ('No deadlines matched your query. Please provide a more specific description of the '
+                                'deadline you want to reminded.')
+            return
+
+        deadline = db.fetch_deadlines_query_by_ids(deadline_id)[0]
+
+        if not reminder.get('reminder_time'):
+            response['text'] = (f"Please provide a specific date and time you want to be reminded of '{deadline[1]}' "
+                                f"due on {deadline[2]}.")
+            return
+
+        reminder_time = datetime.datetime.fromisoformat(reminder['reminder_time'])
+
+        if not reminder.get('confirmation'):
+            response['text'] = (f"Are you sure you want to be reminded at {reminder_time.strftime('%a %d %b %Y, %H:%M')} "
+                                f"for '{deadline[1]}' due on {deadline[2]}?")
+            return
+
+        db.create_reminders_query(deadline[0], reminder_time)
+        response['text'] = (f"You will be reminded on {reminder_time.strftime('%a %d %b %Y, %H:%M')} "
+                            f"for '{deadline[1]}' due on {deadline[2]}.")
 
     def read_reminder():
         print('read_reminder')
@@ -225,7 +255,7 @@ def create_table(deadlines) -> str:
     table = PrettyTable(['Deadline', 'Due Date'], align='l', hrules=ALL)
     table.max_width['Deadline'] = 20
     table.max_width['Due Date'] = 15
-    table.add_rows([[deadline[1], deadline[2].strftime("%B %d, %Y")] for deadline in deadlines])
+    table.add_rows([[deadline[1], deadline[2].strftime("%a %d %b %Y")] for deadline in deadlines])
 
     return table.get_string()
 
