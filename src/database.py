@@ -110,8 +110,8 @@ class PostgresDb:
             chat_id: int,
             start_date: Optional[str] = None,
             end_date: Optional[str] = None) -> list[tuple[int, str, datetime]]:
-        start_date = start_date if start_date else '1900-1-1'
-        end_date = end_date if end_date else '2100-12-30'
+        start_date = start_date or '1900-1-1'
+        end_date = end_date or '2100-12-30'
         user_id = self.get_userid_from_chatid(chat_id)
         query = sql.SQL('SELECT {field1}, {field2}, {field3} FROM {table} '
                         'WHERE {field4} = %s AND ({field3} >= %s AND {field3} <= %s) '
@@ -185,3 +185,17 @@ class PostgresDb:
         )
         self.query(query, (deadline_id, reminder_time))
         self.conn.commit()
+
+    def fetch_reminders_query_by_deadline_ids(self, ids: list[int]) -> list[str, list[datetime]]:
+        query = sql.SQL('SELECT {table1}.{field1}, ARRAY_AGG({table2}.{field2}) FROM {table1} '
+                        'INNER JOIN {table2} ON {table1}.{field3} = {table2}.{field4} WHERE {field4} = ANY(%s) '
+                        'GROUP BY {table1}.{field1} ORDER BY {table1}.{field1} ASC').format(
+            table1=sql.Identifier('deadlines'),
+            table2=sql.Identifier('reminders'),
+            field1=sql.Identifier('description'),
+            field2=sql.Identifier('reminder_time'),
+            field3=sql.Identifier('id'),
+            field4=sql.Identifier('deadline_id')
+        )
+        self.query(query, (ids,))
+        return self.cursor.fetchall()

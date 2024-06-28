@@ -85,7 +85,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             return
 
         if not deadline_info.get('description'):
-            response['text'] = f'```\n{create_table(deadlines)}```'
+            response['text'] = f'```\n{create_deadline_table(deadlines)}```'
             response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
             return
 
@@ -95,7 +95,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             return
 
         filtered_deadlines = db.fetch_deadlines_query_by_ids(deadline_ids)
-        response['text'] = f'```\n{create_table(filtered_deadlines)}```'
+        response['text'] = f'```\n{create_deadline_table(filtered_deadlines)}```'
         response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
 
     def update_deadline():
@@ -152,7 +152,8 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
 
         if not delete_ids.get('confirmation'):
             deadlines_to_delete = db.fetch_deadlines_query_by_ids(delete_ids['ids'])
-            response['text'] = f'Are you sure to delete the following deadlines:```\n{create_table(deadlines_to_delete)}```'
+            response['text'] = (f'Are you sure to delete the following deadlines:'
+                                f'```\n{create_deadline_table(deadlines_to_delete)}```')
             response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
             return
 
@@ -193,7 +194,27 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
                             f"for '{deadline[1]}' due on {deadline[2]}.")
 
     def read_reminder():
-        print('read_reminder')
+        deadline_info = gpt.extract_fetch_info_query(user_msg)
+        deadlines = db.fetch_deadlines_query(chat_id, deadline_info.get('start_date'), deadline_info.get('end_date'))
+
+        if not deadlines:
+            response['text'] = 'No deadlines matched your query.'
+            return
+
+        if not deadline_info.get('description'):
+            reminders = db.fetch_reminders_query_by_deadline_ids([deadline[0] for deadline in deadlines])
+            response['text'] = f'```\n{create_reminder_table(reminders)}```'
+            response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
+            return
+
+        deadline_ids = gpt.filter_deadlines_query(deadlines, deadline_info['description']).get('ids')
+        if not deadline_ids:
+            response['text'] = 'No deadlines matched your query.'
+            return
+
+        reminders = db.fetch_reminders_query_by_deadline_ids(deadline_ids)
+        response['text'] = f'```\n{create_reminder_table(reminders)}```'
+        response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
 
     def update_reminder():
         print('update_reminder')
@@ -251,11 +272,21 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             reply_to_message_id=update.message.id)
 
 
-def create_table(deadlines) -> str:
+def create_deadline_table(deadlines) -> str:
     table = PrettyTable(['Deadline', 'Due Date'], align='l', hrules=ALL)
     table.max_width['Deadline'] = 20
     table.max_width['Due Date'] = 15
     table.add_rows([[deadline[1], deadline[2].strftime("%a %d %b %Y")] for deadline in deadlines])
+
+    return table.get_string()
+
+
+def create_reminder_table(reminders) -> str:
+    table = PrettyTable(['Deadline', 'Reminder Time'], align='l', hrules=ALL)
+    table.max_width['Deadline'] = 20
+    table.max_width['Reminder Time'] = 15
+    table.add_rows([[reminder[0], '\n\n'.join([dt.strftime("%a %d %b %Y, %H:%M") for dt in reminder[1]])]
+                    for reminder in reminders])
 
     return table.get_string()
 
@@ -270,7 +301,7 @@ async def hourly_reminder(context: CallbackContext):
         user_deadlines[deadline[0]].append(deadline[1:])
 
     for chat_id, deadlines in user_deadlines.items():
-        text = f'This is a reminder for the following deadlines:```\n{create_table(deadlines)}```'
+        text = f'This is a reminder for the following deadlines:```\n{create_deadline_table(deadlines)}```'
         await context.bot.sendMessage(
             chat_id,
             text=text,
