@@ -89,7 +89,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
             return
 
-        deadline_ids = gpt.filter_deadlines_query(deadlines, deadline_info['description']).get('ids')
+        deadline_ids = gpt.filter_deadlines_query(deadlines, deadline_info['description']).get('ids', [])
         if not deadline_ids:
             response['text'] = 'No deadlines matched your query.'
             return
@@ -112,14 +112,19 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             response['text'] = 'Please provide a specific description of the deadline you want to update.'
             return
 
-        deadline_id = gpt.filter_deadlines_query(deadlines, deadline_info['old_description']).get('ids')
-        if len(deadline_id) != 1:
-            # Check if description provided exists in the database
-            response['text'] = ('No deadlines matched your query. Please provide a more specific description of the '
-                                'deadline you want to update.')
+        deadline_ids = gpt.filter_deadlines_query(deadlines, deadline_info['old_description']).get('ids', [])
+
+        # Check if description provided exists in the database
+        if not deadline_ids:
+            response['text'] = 'No deadlines matched your query.'
             return
 
-        deadline = db.fetch_deadlines_query_by_ids(deadline_id)[0]
+        if len(deadline_ids) > 1:
+            response['text'] = ('Multiple deadlines matched your query. Please provide a more specific description of '
+                                'the deadline you want to reminded.')
+            return
+
+        deadline = db.fetch_deadlines_query_by_ids(deadline_ids)[0]
 
         # Extract new description or new due date of the deadline
         update_info = gpt.extract_update_info_query(messages)
@@ -134,7 +139,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
                                 f"{update_info['new_due_date'] or deadline[2]}?")
             return
 
-        db.update_deadline_query(deadline_id[0], update_info['new_description'], update_info['new_due_date'])
+        db.update_deadline_query(deadline_ids[0], update_info['new_description'], update_info['new_due_date'])
         response['text'] = f'Updated deadline.'
 
     def delete_deadline():
@@ -168,14 +173,19 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             return
 
         deadlines = db.fetch_deadlines_query(chat_id)
-        deadline_id = gpt.filter_deadlines_query(deadlines, reminder['deadline_description']).get('ids')
-        if len(deadline_id) != 1:
-            # Check if description provided exists in the database
-            response['text'] = ('No deadlines matched your query. Please provide a more specific description of the '
-                                'deadline you want to reminded.')
+        deadline_ids = gpt.filter_deadlines_query(deadlines, reminder['deadline_description']).get('ids', [])
+
+        # Check if description provided exists in the database
+        if not deadline_ids:
+            response['text'] = 'No deadlines matched your query.'
             return
 
-        deadline = db.fetch_deadlines_query_by_ids(deadline_id)[0]
+        if len(deadline_ids) > 1:
+            response['text'] = ('Multiple deadlines matched your query. Please provide a more specific description of '
+                                'the deadline you want to reminded.')
+            return
+
+        deadline = db.fetch_deadlines_query_by_ids(deadline_ids)[0]
 
         if not reminder.get('reminder_time'):
             response['text'] = (f"Please provide a specific date and time you want to be reminded of '{deadline[1]}' "
@@ -207,7 +217,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
             return
 
-        deadline_ids = gpt.filter_deadlines_query(deadlines, deadline_info['description']).get('ids')
+        deadline_ids = gpt.filter_deadlines_query(deadlines, deadline_info['description']).get('ids', [])
         if not deadline_ids:
             response['text'] = 'No deadlines matched your query.'
             return
