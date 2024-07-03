@@ -70,8 +70,12 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             return
 
         deadline_id = db.create_deadline_query(chat_id, deadline['description'], deadline['due_date'])
+        if not deadline_id:
+            response['text'] = 'Cannot create deadline as deadline already exists.'
+            return
+
         db.create_reminders_query(
-            deadline_id,
+            deadline_id[0],
             datetime.datetime.combine(datetime.date.fromisoformat(deadline['due_date']), datetime.time(8)))
         response['text'] = (f"Your deadline for '{deadline['description']}' due on {deadline['due_date']} "
                             f"has been saved! You will be reminded a day before the due date at 8am.")

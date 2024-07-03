@@ -92,9 +92,10 @@ class PostgresDb:
         self.query(query, (user_id, text, from_user))
         self.conn.commit()
 
-    def create_deadline_query(self, chat_id: int, description: str, due_date: str) -> int:
+    def create_deadline_query(self, chat_id: int, description: str, due_date: str) -> Optional[tuple]:
         user_id = self.get_userid_from_chatid(chat_id)
-        query = sql.SQL('INSERT INTO {table} ({field1}, {field2}, {field3}) VALUES(%s, %s, %s) RETURNING {field4}').format(
+        query = sql.SQL('INSERT INTO {table} ({field1}, {field2}, {field3}) VALUES(%s, %s, %s) '
+                        'ON CONFLICT ({field1}, {field2}) DO NOTHING RETURNING {field4}').format(
             table=sql.Identifier('deadlines'),
             field1=sql.Identifier('user_id'),
             field2=sql.Identifier('description'),
@@ -103,7 +104,7 @@ class PostgresDb:
         )
         self.query(query, (user_id, description, due_date))
         self.conn.commit()
-        return self.cursor.fetchone()[0]
+        return self.cursor.fetchone()
 
     def fetch_deadlines_query(
             self,

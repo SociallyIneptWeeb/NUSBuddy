@@ -28,5 +28,6 @@ CREATE TABLE "messages" (
 ALTER TABLE "messages" ADD CONSTRAINT fk_messages_users FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE;
 
 ALTER TABLE "deadlines" ADD CONSTRAINT fk_deadlines_users FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE;
+ALTER TABLE "deadlines" ADD UNIQUE ("user_id", "description");
 
 ALTER TABLE "reminders" ADD CONSTRAINT fk_reminders_deadlines FOREIGN KEY ("deadline_id") REFERENCES "deadlines" ("id") ON DELETE CASCADE;
