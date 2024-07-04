@@ -69,13 +69,13 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             response['text'] = f"Are you sure to create deadline '{deadline['description']}' due on {deadline['due_date']}?"
             return
 
-        deadline_id = db.create_deadline_query(chat_id, deadline['description'], deadline['due_date'])
-        if not deadline_id:
+        if db.deadline_exists_query(chat_id, deadline['description']):
             response['text'] = 'Cannot create deadline as deadline already exists.'
             return
 
+        deadline_id = db.create_deadline_query(chat_id, deadline['description'], deadline['due_date'])
         db.create_reminders_query(
-            deadline_id[0],
+            deadline_id,
             datetime.datetime.combine(datetime.date.fromisoformat(deadline['due_date']), datetime.time(8)))
         response['text'] = (f"Your deadline for '{deadline['description']}' due on {deadline['due_date']} "
                             f"has been saved! You will be reminded a day before the due date at 8am.")
@@ -137,10 +137,15 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             response['text'] = 'Please provide a new description or due date for the deadline you want to update.'
             return
 
+        new_desc = update_info.get('new_description')
+
         if not update_info.get('confirmation'):
             response['text'] = (f"Are you sure to update deadline '{deadline[1]}' due on {deadline[2]} "
-                                f"to '{update_info['new_description'] or deadline[1]}' due on "
-                                f"{update_info['new_due_date'] or deadline[2]}?")
+                                f"to '{new_desc or deadline[1]}' due on {update_info['new_due_date'] or deadline[2]}?")
+            return
+
+        if new_desc and new_desc != deadline[1] and db.deadline_exists_query(chat_id, new_desc):
+            response['text'] = 'Cannot update deadline as new deadline description already exists.'
             return
 
         db.update_deadline_query(deadline_ids[0], update_info['new_description'], update_info['new_due_date'])
