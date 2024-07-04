@@ -88,7 +88,10 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         deadlines = db.fetch_deadlines_query(chat_id, deadline_info.get('start_date'), deadline_info.get('end_date'))
 
         if not deadlines:
-            response['text'] = 'No deadlines matched your query.'
+            if deadline_info.get('start_date') or deadline_info.get('end_date'):
+                response['text'] = 'No deadlines matched your query.'
+            else:
+                response['text'] = 'No deadlines in the database.'
             return
 
         if not deadline_info.get('description'):
@@ -223,7 +226,10 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         deadlines = db.fetch_deadlines_query(chat_id, deadline_info.get('start_date'), deadline_info.get('end_date'))
 
         if not deadlines:
-            response['text'] = 'No deadlines matched your query.'
+            if deadline_info.get('start_date') or deadline_info.get('end_date'):
+                response['text'] = 'No deadlines matched your query.'
+            else:
+                response['text'] = 'No deadlines in the database.'
             return
 
         if not deadline_info.get('description'):
