@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 from os import getenv
+from math import ceil
 
 from dotenv import load_dotenv
 from faster_whisper import WhisperModel
@@ -45,10 +46,13 @@ class Telebot:
         # for testing purposes
         # job_queue.run_once(callback=hourly_reminder, when=5)
 
-        start = datetime.datetime.now().replace(microsecond=0, second=0, minute=0) + datetime.timedelta(hours=1)
+        start = datetime.datetime.now().replace(microsecond=0, second=0)
+        minutes_to_add = ceil(start.minute / 5) * 5 - start.minute
+        start += datetime.timedelta(minutes=minutes_to_add)
+
         job_queue.run_repeating(
             callback=hourly_reminder,
-            interval=datetime.timedelta(hours=1),
+            interval=datetime.timedelta(minutes=5),
             first=start.astimezone())
 
     def run(self):
