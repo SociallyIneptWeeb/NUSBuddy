@@ -2,7 +2,7 @@ from typing import Optional
 
 import psycopg2
 from psycopg2 import sql
-from datetime import datetime
+from datetime import datetime, date
 
 
 # TODO: Add new reminders table to handle custom reminders
@@ -92,7 +92,7 @@ class PostgresDb:
         self.query(query, (user_id, text, from_user))
         self.conn.commit()
 
-    def create_deadline_query(self, chat_id: int, description: str, due_date: str) -> int:
+    def create_deadline_query(self, chat_id: int, description: str, due_date: date) -> int:
         user_id = self.get_userid_from_chatid(chat_id)
         query = sql.SQL('INSERT INTO {table} ({field1}, {field2}, {field3}) VALUES(%s, %s, %s) RETURNING {field4}').format(
             table=sql.Identifier('deadlines'),
@@ -119,7 +119,7 @@ class PostgresDb:
             self,
             chat_id: int,
             start_date: Optional[str] = None,
-            end_date: Optional[str] = None) -> list[tuple[int, str, datetime]]:
+            end_date: Optional[str] = None) -> list[tuple[int, str, date]]:
         start_date = start_date or '1900-1-1'
         end_date = end_date or '2100-12-30'
         user_id = self.get_userid_from_chatid(chat_id)
@@ -135,7 +135,7 @@ class PostgresDb:
         self.query(query, (user_id, start_date, end_date))
         return self.cursor.fetchall()
 
-    def fetch_deadlines_query_by_ids(self, ids: list[int]) -> list[tuple[int, str, datetime]]:
+    def fetch_deadlines_query_by_ids(self, ids: list[int]) -> list[tuple[int, str, date]]:
         query = sql.SQL('SELECT {field1}, {field2}, {field3} FROM {table} '
                         'WHERE {field1} = ANY(%s) ORDER BY {field3} ASC').format(
             table=sql.Identifier('deadlines'),
@@ -146,7 +146,7 @@ class PostgresDb:
         self.query(query, (ids,))
         return self.cursor.fetchall()
 
-    def fetch_reminders_query(self, timestamp: datetime) -> list[tuple[int, int, str, datetime]]:
+    def fetch_reminders_query(self, timestamp: datetime) -> list[tuple[int, int, str, date]]:
         query = sql.SQL('SELECT {table1}.{field1}, {table2}.{field2}, {table2}.{field3}, {table2}.{field4} FROM {table1} '
                         'INNER JOIN {table2} ON {table1}.{field2} = {table2}.{field5} '
                         'INNER JOIN {table3} ON {table2}.{field2} = {table3}.{field6} '
@@ -166,7 +166,7 @@ class PostgresDb:
         self.query(query, (timestamp,))
         return self.cursor.fetchall()
 
-    def delete_deadlines_query(self, ids: list[int]) -> list[tuple[str, datetime]]:
+    def delete_deadlines_query(self, ids: list[int]) -> list[tuple[str, date]]:
         query = sql.SQL('DELETE FROM {table} WHERE {field1} = ANY(%s) RETURNING {field2}, {field3}').format(
             table=sql.Identifier('deadlines'),
             field1=sql.Identifier('id'),
@@ -176,7 +176,7 @@ class PostgresDb:
         self.query(query, (ids,))
         return self.cursor.fetchall()
 
-    def update_deadline_query(self, id: int, description: Optional[str], due_date: Optional[str]):
+    def update_deadline_query(self, id: int, description: Optional[str], due_date: Optional[date]):
         query = sql.SQL('UPDATE {table} SET {field1} = COALESCE(%s, {field1}), {field2} = COALESCE(%s, {field2}) '
                         'WHERE {field3} = %s').format(
             table=sql.Identifier('deadlines'),

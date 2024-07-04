@@ -65,20 +65,23 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             response['text'] = 'Please provide a specific due date for the deadline you want to create.'
             return
 
+        due_date = datetime.date.fromisoformat(deadline['due_date'])
+
         if not deadline.get('confirmation'):
-            response['text'] = f"Are you sure to create deadline '{deadline['description']}' due on {deadline['due_date']}?"
+            response['text'] = (f'Are you sure to create deadline '
+                                f'```\n{create_deadline_table([(-1, deadline["description"], due_date)])}```')
+            response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
             return
 
         if db.deadline_exists_query(chat_id, deadline['description']):
             response['text'] = 'Cannot create deadline as deadline already exists.'
             return
 
-        deadline_id = db.create_deadline_query(chat_id, deadline['description'], deadline['due_date'])
-        db.create_reminders_query(
-            deadline_id,
-            datetime.datetime.combine(datetime.date.fromisoformat(deadline['due_date']), datetime.time(8)))
-        response['text'] = (f"Your deadline for '{deadline['description']}' due on {deadline['due_date']} "
-                            f"has been saved! You will be reminded a day before the due date at 8am.")
+        deadline_id = db.create_deadline_query(chat_id, deadline['description'], due_date)
+        reminder_timestamp = datetime.datetime.combine(due_date, datetime.time(8))
+        db.create_reminders_query(deadline_id, reminder_timestamp)
+        response['text'] = (f'Your deadline has been saved. You will be reminded at '
+                            f'{reminder_timestamp.strftime("%a %d %b %Y, %H:%M")}')
 
     def read_deadline():
         deadline_info = gpt.extract_fetch_info_query(user_msg)
@@ -125,7 +128,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
 
         if len(deadline_ids) > 1:
             response['text'] = ('Multiple deadlines matched your query. Please provide a more specific description of '
-                                'the deadline you want to reminded.')
+                                'the deadline you want to update.')
             return
 
         deadline = db.fetch_deadlines_query_by_ids(deadline_ids)[0]
@@ -137,18 +140,20 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             response['text'] = 'Please provide a new description or due date for the deadline you want to update.'
             return
 
-        new_desc = update_info.get('new_description')
+        new_desc = update_info.get('new_description') or deadline[1]
+        new_date = datetime.date.fromisoformat(update_info.get('new_due_date') or str(deadline[2]))
 
         if not update_info.get('confirmation'):
-            response['text'] = (f"Are you sure to update deadline '{deadline[1]}' due on {deadline[2]} "
-                                f"to '{new_desc or deadline[1]}' due on {update_info['new_due_date'] or deadline[2]}?")
+            response['text'] = (f'Are you sure to update deadline:```\n{create_deadline_table([deadline])}``` to '
+                                f'```\n{create_deadline_table([(deadline[0], new_desc, new_date)])}```')
+            response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
             return
 
         if new_desc and new_desc != deadline[1] and db.deadline_exists_query(chat_id, new_desc):
             response['text'] = 'Cannot update deadline as new deadline description already exists.'
             return
 
-        db.update_deadline_query(deadline_ids[0], update_info['new_description'], update_info['new_due_date'])
+        db.update_deadline_query(deadline[0], new_desc, new_date)
         response['text'] = f'Updated deadline.'
 
     def delete_deadline():
@@ -197,20 +202,21 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         deadline = db.fetch_deadlines_query_by_ids(deadline_ids)[0]
 
         if not reminder.get('reminder_time'):
-            response['text'] = (f"Please provide a specific date and time you want to be reminded of '{deadline[1]}' "
-                                f"due on {deadline[2]}.")
+            response['text'] = (f'Please provide a specific date and time you want to be reminded of '
+                                f'```\n{create_deadline_table([deadline])}```')
+            response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
             return
 
         reminder_time = datetime.datetime.fromisoformat(reminder['reminder_time'])
 
         if not reminder.get('confirmation'):
-            response['text'] = (f"Are you sure you want to be reminded at {reminder_time.strftime('%a %d %b %Y, %H:%M')} "
-                                f"for '{deadline[1]}' due on {deadline[2]}?")
+            response['text'] = (f'Are you sure you want to be reminded at {reminder_time.strftime("%a %d %b %Y, %H:%M")} '
+                                f'for ```\n{create_deadline_table([deadline])}```')
+            response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
             return
 
         db.create_reminders_query(deadline[0], reminder_time)
-        response['text'] = (f"You will be reminded on {reminder_time.strftime('%a %d %b %Y, %H:%M')} "
-                            f"for '{deadline[1]}' due on {deadline[2]}.")
+        response['text'] = 'Your reminder has been saved.'
 
     def read_reminder():
         deadline_info = gpt.extract_fetch_info_query(user_msg)
@@ -291,7 +297,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             reply_to_message_id=update.message.id)
 
 
-def create_deadline_table(deadlines) -> str:
+def create_deadline_table(deadlines: list[tuple[int, str, datetime.date]]) -> str:
     table = PrettyTable(['Deadline', 'Due Date'], align='l', hrules=ALL)
     table.max_width['Deadline'] = 20
     table.max_width['Due Date'] = 15
@@ -300,7 +306,7 @@ def create_deadline_table(deadlines) -> str:
     return table.get_string()
 
 
-def create_reminder_table(reminders) -> str:
+def create_reminder_table(reminders: list[str, list[datetime]]) -> str:
     table = PrettyTable(['Deadline', 'Upcoming Reminders'], align='l', hrules=ALL)
     table.max_width['Deadline'] = 15
     table.max_width['Upcoming Reminders'] = 20

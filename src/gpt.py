@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, date
 from enum import Enum
 from os import getenv
 from typing import Optional, TypedDict
@@ -118,7 +118,7 @@ class GPT:
         messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': message}]
         return json.loads(self.query(messages, json=True))
 
-    def extract_delete_ids_query(self, deadlines: list[tuple[int, str, datetime]], messages: list[GPTMessageType]) -> DeleteIdsType:
+    def extract_delete_ids_query(self, deadlines: list[tuple[int, str, date]], messages: list[GPTMessageType]) -> DeleteIdsType:
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
         with open(f'{PROMPT_DIR}/extract_delete_ids.txt') as infile:
             prompt = infile.read() % {'now': now, 'deadlines': deadlines}
@@ -127,7 +127,7 @@ class GPT:
         messages.insert(0, {'role': 'system', 'content': prompt})
         return json.loads(self.query(messages, json=True))
 
-    def filter_deadlines_query(self, deadlines: list[tuple[int, str, datetime]], description: str) -> FilterDeadlinesType:
+    def filter_deadlines_query(self, deadlines: list[tuple[int, str, date]], description: str) -> FilterDeadlinesType:
         with open(f'{PROMPT_DIR}/filter_deadlines.txt') as infile:
             prompt = infile.read() % {'deadlines': deadlines}
 
