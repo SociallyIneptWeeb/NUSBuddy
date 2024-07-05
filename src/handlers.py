@@ -65,7 +65,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             response['text'] = 'Please provide a specific due date for the deadline you want to create.'
             return
 
-        due_date = datetime.date.fromisoformat(deadline['due_date'])
+        due_date = datetime.datetime.fromisoformat(deadline['due_date']).date()
 
         if not deadline.get('confirmation'):
             response['text'] = (f'Are you sure to create deadline '
@@ -144,7 +144,10 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             return
 
         new_desc = update_info.get('new_description') or deadline[1]
-        new_date = datetime.date.fromisoformat(update_info.get('new_due_date') or str(deadline[2]))
+        if update_info.get('new_due_date'):
+            new_date = datetime.datetime.fromisoformat(update_info['new_due_date']).date()
+        else:
+            new_date = deadline[2]
 
         if not update_info.get('confirmation'):
             response['text'] = (f'Are you sure to update deadline:```\n{create_deadline_table([deadline])}``` to '
@@ -152,7 +155,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
             return
 
-        if new_desc and new_desc != deadline[1] and db.deadline_exists_query(chat_id, new_desc):
+        if new_desc != deadline[1] and db.deadline_exists_query(chat_id, new_desc):
             response['text'] = 'Cannot update deadline as new deadline description already exists.'
             return
 
@@ -323,7 +326,7 @@ def create_reminder_table(reminders: list[str, list[datetime]]) -> str:
 
 
 # TODO: Add custom reminder times
-async def hourly_reminder(context: CallbackContext):
+async def reminder_callback(context: CallbackContext):
     db: PostgresDb = context.bot_data['db']
     deadlines = db.fetch_reminders_query(datetime.datetime.now().replace(microsecond=0, second=0))
 

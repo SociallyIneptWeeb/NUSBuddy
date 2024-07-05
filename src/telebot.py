@@ -9,7 +9,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 
 from database import PostgresDb
 from gpt import GPT
-from handlers import hourly_reminder, handle_start, handle_message, handle_unknown, handle_voice
+from handlers import reminder_callback, handle_start, handle_message, handle_unknown, handle_voice
 
 load_dotenv()
 
@@ -48,7 +48,7 @@ class Telebot:
 
         start = datetime.datetime.now().replace(microsecond=0, second=0)
         job_queue.run_repeating(
-            callback=hourly_reminder,
+            callback=reminder_callback,
             interval=datetime.timedelta(minutes=1),
             first=start.astimezone())
 

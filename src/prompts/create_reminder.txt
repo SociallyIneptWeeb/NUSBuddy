@@ -1,6 +1,6 @@
 Given the user's message to create a reminder for a project or submission deadline, extract key information and output in a json format.
 The json object should only have the following keys: "deadline_description", "reminder_time", and "confirmation".
-The "reminder_time" key should be in the format "YYYY-MM-DD HH:MM" and should be in the future.
+The "reminder_time" key should be in ISO 8601 format "YYYY-MM-DD HH:MM" and should be in the future.
 The "confirmation" key is a boolean value that should be false unless the user agrees that the information is correct.
 
 Example output:

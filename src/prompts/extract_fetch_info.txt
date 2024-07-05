@@ -1,5 +1,6 @@
 Given the user's message to fetch project or submission deadlines, extract key information and output in a json format.
 The json object should have the following keys: "description", "start_date" and "end_date".
+The "start_date" and "end_date" keys should be in ISO 8601 format (YYYY-MM-DD).
 
 Example output:
 {
