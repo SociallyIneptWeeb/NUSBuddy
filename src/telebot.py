@@ -47,12 +47,9 @@ class Telebot:
         # job_queue.run_once(callback=hourly_reminder, when=5)
 
         start = datetime.datetime.now().replace(microsecond=0, second=0)
-        minutes_to_add = ceil(start.minute / 5) * 5 - start.minute
-        start += datetime.timedelta(minutes=minutes_to_add)
-
         job_queue.run_repeating(
             callback=hourly_reminder,
-            interval=datetime.timedelta(minutes=5),
+            interval=datetime.timedelta(minutes=1),
             first=start.astimezone())
 
     def run(self):

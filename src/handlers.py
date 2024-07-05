@@ -325,7 +325,7 @@ def create_reminder_table(reminders: list[str, list[datetime]]) -> str:
 # TODO: Add custom reminder times
 async def hourly_reminder(context: CallbackContext):
     db: PostgresDb = context.bot_data['db']
-    deadlines = db.fetch_reminders_query(datetime.datetime.now().replace(microsecond=0, second=0, minute=0))
+    deadlines = db.fetch_reminders_query(datetime.datetime.now().replace(microsecond=0, second=0))
 
     user_deadlines = defaultdict(list)
     for deadline in deadlines:
