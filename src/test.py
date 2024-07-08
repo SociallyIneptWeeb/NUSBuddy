@@ -46,12 +46,15 @@ class GPTQueryTest(unittest.TestCase):
 
     def test_intention(self):
         tests = [
-            ([{'role': 'user', 'content': 'I have a project submission due soon, can you help me remember that?'}], Intention.CREATE),
-            ([{'role': 'user', 'content': 'When is my orbital submission due?'}], Intention.READ),
-            ([{'role': 'user', 'content': 'What deadlines do I have next week?'}], Intention.READ),
-            ([{'role': 'user', 'content': 'Can you help me change the due date for one of my deadlines?'}], Intention.UPDATE),
-            ([{'role': 'user', 'content': 'I have completed my submission for my orbital milestone. Can you remove it?'}], Intention.DELETE),
-            ([{'role': 'user', 'content': 'Do you know what time it is?'}], Intention.NONE),
+            ([{'role': 'user', 'content': 'I have a project submission due soon, can you help me create a deadline for that?'}], {'action': Intention.CREATE, 'target': 'deadline'}),
+            ([{'role': 'user', 'content': 'When is my orbital submission due?'}], {'action': Intention.READ, 'target': 'deadline'}),
+            ([{'role': 'user', 'content': 'What deadlines do I have next week?'}], {'action': Intention.READ, 'target': 'deadline'}),
+            ([{'role': 'user', 'content': 'Can you help me change the due date for one of my deadlines?'}], {'action': Intention.UPDATE, 'target': 'deadline'}),
+            ([{'role': 'user', 'content': 'I have completed my submission for my orbital milestone. Can you remove it?'}], {'action': Intention.DELETE, 'target': 'deadline'}),
+            ([{'role': 'user', 'content': 'Can you create a reminder for my submission?'}], {'action': Intention.CREATE, 'target': 'reminder'}),
+            ([{'role': 'user', 'content': 'When is the reminder for my orbital submission?'}], {'action': Intention.READ, 'target': 'reminder'}),
+            ([{'role': 'user', 'content': 'Could you postpone my reminder to next Sunday?'}], {'action': Intention.UPDATE, 'target': 'reminder'}),
+            ([{'role': 'user', 'content': 'I want to remove all of my reminders.'}], {'action': Intention.DELETE, 'target': 'reminder'}),
         ]
         for test in tests:
             with self.subTest(messages=test[0], intent=test[1]):
