@@ -251,7 +251,75 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
 
     def update_reminder():
-        print('update_reminder')
+        deadlines = db.fetch_deadlines_query(chat_id)
+
+        if not deadlines:
+            response['text'] = 'There are no deadlines in the database to update.'
+            return
+
+        # Extract description of the deadline to be updated
+        deadline_info = gpt.extract_update_description_query(messages)
+
+        if not deadline_info.get('old_description'):
+            response['text'] = 'Please provide a specific description of the deadline you want to update.'
+            return
+
+        deadline_ids = gpt.filter_deadlines_query(deadlines, deadline_info['old_description']).get('ids', [])
+
+        # Check if description provided exists in the database
+        if not deadline_ids:
+            response['text'] = 'No deadlines matched your query.'
+            return
+
+        if len(deadline_ids) > 1:
+            response['text'] = ('Multiple deadlines matched your query. Please provide a more specific description of '
+                                'the deadline you want to update.')
+            return
+
+        deadline = db.fetch_deadlines_query_by_ids(deadline_ids)[0]
+
+        # Extract old and new reminder times
+        update_info = gpt.extract_update_reminder_query(messages)
+
+        if not update_info.get('old_reminder_time'):
+            reminders = db.fetch_reminders_query_by_deadline_ids([deadline[0]])
+            response['text'] = (f'Please provide the specific reminder time you want to update from the following '
+                                f'reminders:```\n{create_reminder_table(reminders)}```')
+            response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
+            return
+
+        now = datetime.datetime.now()
+        old_reminder_time = datetime.datetime.fromisoformat(update_info['old_reminder_time'])
+        if old_reminder_time < now:
+            response['text'] = 'Cannot update reminder as old reminder time is in the past.'
+            return
+
+        reminder = db.fetch_reminder_query(deadline[0], old_reminder_time)
+        if not reminder:
+            response['text'] = 'No reminders matched your query.'
+            return
+
+        if not update_info.get('new_reminder_time'):
+            response['text'] = 'Please provide a new reminder time for the reminder you want to update.'
+            return
+
+        new_reminder_time = datetime.datetime.fromisoformat(update_info['new_reminder_time'])
+        if new_reminder_time < now:
+            response['text'] = 'Cannot update reminder as new reminder time is in the past.'
+            return
+
+        if not update_info.get('confirmation'):
+            response['text'] = (f'Are you sure to update reminder:```\n{create_reminder_table([(deadline[1], [reminder[2]])])}``` to '
+                                f'```\n{create_reminder_table([(deadline[1], [new_reminder_time])])}```')
+            response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
+            return
+
+        if db.fetch_reminder_query(deadline[0], new_reminder_time):
+            response['text'] = 'Cannot update reminder as new reminder already exists.'
+            return
+
+        db.update_reminder_query(reminder[0], new_reminder_time)
+        response['text'] = f'Updated reminder.'
 
     def delete_reminder():
         print('delete_reminder')
@@ -273,7 +341,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
     messages.append({'role': 'user', 'content': user_msg})
     db.create_message_query(chat_id, user_msg, True)
     intention = gpt.intention_query(messages)
-    response = {'text': '', 'parse_mode': None}
+    response = {'text': '', 'parse_mode': ''}
 
     if intention.get('target') == 'deadline':
         action_map = {
@@ -302,7 +370,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         db.create_message_query(chat_id, response['text'], False)
         await update.effective_message.reply_text(
             response['text'],
-            parse_mode=response['parse_mode'],
+            parse_mode=response['parse_mode'] or None,
             reply_to_message_id=update.message.id)
 
 
@@ -315,7 +383,7 @@ def create_deadline_table(deadlines: list[tuple[int, str, datetime.date]]) -> st
     return table.get_string()
 
 
-def create_reminder_table(reminders: list[str, list[datetime]]) -> str:
+def create_reminder_table(reminders: list[tuple[str, list[datetime]]]) -> str:
     table = PrettyTable(['Deadline', 'Upcoming Reminders'], align='l', hrules=ALL)
     table.max_width['Deadline'] = 15
     table.max_width['Upcoming Reminders'] = 20

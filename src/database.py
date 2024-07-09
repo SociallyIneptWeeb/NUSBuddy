@@ -196,7 +196,7 @@ class PostgresDb:
         self.query(query, (deadline_id, reminder_time))
         self.conn.commit()
 
-    def fetch_reminders_query_by_deadline_ids(self, ids: list[int]) -> list[str, list[datetime]]:
+    def fetch_reminders_query_by_deadline_ids(self, ids: list[int]) -> list[tuple[str, list[datetime]]]:
         query = sql.SQL('SELECT {table1}.{field1}, ARRAY_AGG({table2}.{field2} ORDER BY {table2}.{field2}) FROM {table1} '
                         'INNER JOIN {table2} ON {table1}.{field3} = {table2}.{field4} '
                         'WHERE {field2} >= %s AND {field4} = ANY(%s) GROUP BY {table1}.{field1}').format(
@@ -209,3 +209,21 @@ class PostgresDb:
         )
         self.query(query, (datetime.now(), ids,))
         return self.cursor.fetchall()
+
+    def fetch_reminder_query(self, deadline_id: int, reminder_time: datetime) -> tuple[int, str, datetime]:
+        query = sql.SQL('SELECT * FROM {table} WHERE {field1} = %s AND {field2} = %s').format(
+            table=sql.Identifier('reminders'),
+            field1=sql.Identifier('deadline_id'),
+            field2=sql.Identifier('reminder_time')
+        )
+        self.query(query, (deadline_id, reminder_time))
+        return self.cursor.fetchone()
+
+    def update_reminder_query(self, reminder_id: int, reminder_time: datetime):
+        query = sql.SQL('UPDATE {table} SET {field1} = %s WHERE {field2} = %s').format(
+            table=sql.Identifier('reminders'),
+            field1=sql.Identifier('reminder_time'),
+            field2=sql.Identifier('id')
+        )
+        self.query(query, (reminder_time, reminder_id))
+        self.conn.commit()
