@@ -1,3 +1,4 @@
+import datetime
 import unittest
 from os import getenv
 
@@ -9,7 +10,7 @@ from gpt import GPT, Intention
 load_dotenv()
 
 
-class DbQueryTest(unittest.TestCase):
+class DbAccountTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.db = PostgresDb(
@@ -33,6 +34,56 @@ class DbQueryTest(unittest.TestCase):
         self.assertTrue(self.db.account_exists_query(chat_id))
         self.db.delete_user_account_query(chat_id)
         self.assertFalse(self.db.account_exists_query(chat_id))
+
+
+class DbQueryTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.db = PostgresDb(
+            getenv('POSTGRES_DB'),
+            getenv('POSTGRES_HOST'),
+            int(getenv('POSTGRES_PORT')),
+            getenv('POSTGRES_USER'),
+            getenv('POSTGRES_PASSWORD')
+        )
+        cls.db.connect()
+        cls.username = 'TestUsername'
+        cls.chat_id = 1
+        cls.db.create_user_account_query(cls.username, cls.chat_id)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.db.delete_user_account_query(cls.chat_id)
+        cls.db.close()
+        del cls.db
+
+    def test_message(self):
+        created_messages = [('This is a test', True), ('This is another test message', False)]
+        for msg in created_messages:
+            self.db.create_message_query(self.chat_id, msg[0], msg[1])
+        db_messages = self.db.fetch_latest_messages_query(self.chat_id)
+        self.assertEqual(created_messages, db_messages)
+
+    def test_deadline(self):
+        created_deadlines = [
+            ('Orbital Milestone Submission', datetime.date(2024, 6, 15)),
+            ('CS2030S Lab 3 Submission', datetime.date(2024, 7, 10))]
+
+        for deadline in created_deadlines:
+            self.assertFalse(self.db.deadline_exists_query(self.chat_id, deadline[0]))
+            self.db.create_deadline_query(self.chat_id, deadline[0], deadline[1])
+            self.assertTrue(self.db.deadline_exists_query(self.chat_id, deadline[0]))
+
+        db_deadlines = self.db.fetch_deadlines_query(self.chat_id)
+        self.assertEqual(created_deadlines, [deadline[1:] for deadline in db_deadlines])
+        self.assertEqual(db_deadlines, self.db.fetch_deadlines_query_by_ids([deadline[0] for deadline in db_deadlines]))
+
+        updated_deadline = ('Project slides submission', datetime.date(2024, 8, 1))
+        self.db.update_deadline_query(db_deadlines[0][0], updated_deadline[0], updated_deadline[1])
+        self.assertEqual(updated_deadline, self.db.fetch_deadlines_query_by_ids([db_deadlines[0][0]])[0][1:])
+
+        self.db.delete_deadlines_query([deadline[0] for deadline in db_deadlines])
+        self.assertEqual(self.db.fetch_deadlines_query(self.chat_id), [])
 
 
 class GPTQueryTest(unittest.TestCase):
