@@ -50,7 +50,8 @@ class Telebot:
         job_queue.run_repeating(
             callback=reminder_callback,
             interval=datetime.timedelta(minutes=1),
-            first=start.astimezone())
+            first=start.astimezone(),
+            job_kwargs={'misfire_grace_time': 58})
 
     def run(self):
         self.app.run_polling()
