@@ -68,6 +68,17 @@ class ReminderCreationType(TypedDict):
     confirmation: bool
 
 
+class ReminderUpdateType(TypedDict):
+    old_reminder_time: str
+    new_reminder_time: str
+    confirmation: bool
+
+
+class ReminderDeleteType(TypedDict):
+    reminder_time: str
+    confirmation: bool
+
+
 # TODO: Factorise into subclasses
 class GPT:
     def __init__(self):
@@ -154,6 +165,24 @@ class GPT:
     def create_reminder_query(self, messages: list[GPTMessageType]) -> ReminderCreationType:
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
         with open(f'{PROMPT_DIR}/create_reminder.txt') as infile:
+            prompt = infile.read() % {'now': now}
+
+        messages = messages.copy()
+        messages.insert(0, {'role': 'system', 'content': prompt})
+        return json.loads(self.query(messages, json=True))
+
+    def extract_update_reminder_query(self, messages: list[GPTMessageType]) -> ReminderUpdateType:
+        now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
+        with open(f'{PROMPT_DIR}/extract_update_reminder.txt') as infile:
+            prompt = infile.read() % {'now': now}
+
+        messages = messages.copy()
+        messages.insert(0, {'role': 'system', 'content': prompt})
+        return json.loads(self.query(messages, json=True))
+
+    def extract_delete_reminder_query(self, messages: list[GPTMessageType]) -> ReminderDeleteType:
+        now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
+        with open(f'{PROMPT_DIR}/extract_delete_reminder.txt') as infile:
             prompt = infile.read() % {'now': now}
 
         messages = messages.copy()

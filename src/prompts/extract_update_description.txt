@@ -1,4 +1,4 @@
-Given the user's intention to update a project or submission deadline, extract the description of the project to be updated and output in a json format.
+Given the user's intention to update a deadline or reminder, extract the description of the deadline to be updated and output in a json format.
 The json object should only have the "old_description" key.
 
 Example output:
