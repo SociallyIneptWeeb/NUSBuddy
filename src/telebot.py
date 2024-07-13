@@ -1,7 +1,6 @@
 import asyncio
 import datetime
 from os import getenv
-from math import ceil
 
 from dotenv import load_dotenv
 from faster_whisper import WhisperModel

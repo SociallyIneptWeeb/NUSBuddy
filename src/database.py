@@ -227,3 +227,11 @@ class PostgresDb:
         )
         self.query(query, (reminder_time, reminder_id))
         self.conn.commit()
+
+    def delete_reminder_query(self, reminder_id: int):
+        query = sql.SQL('DELETE FROM {table} WHERE {field} = %s').format(
+            table=sql.Identifier('reminders'),
+            field=sql.Identifier('id')
+        )
+        self.query(query, (reminder_id,))
+        self.conn.commit()

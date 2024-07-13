@@ -214,6 +214,9 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             return
 
         reminder_time = datetime.datetime.fromisoformat(reminder['reminder_time'])
+        if reminder_time < datetime.datetime.now():
+            response['text'] = 'Cannot create reminder in the past.'
+            return
 
         if not reminder.get('confirmation'):
             response['text'] = (f'Are you sure you want to be reminded at {reminder_time.strftime("%a %d %b %Y, %H:%M")} '
@@ -319,10 +322,63 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             return
 
         db.update_reminder_query(reminder[0], new_reminder_time)
-        response['text'] = f'Updated reminder.'
+        response['text'] = 'Updated reminder.'
 
     def delete_reminder():
-        print('delete_reminder')
+        deadlines = db.fetch_deadlines_query(chat_id)
+
+        if not deadlines:
+            response['text'] = 'There are no deadlines in the database to update.'
+            return
+
+        # Extract description of the deadline to be updated
+        deadline_info = gpt.extract_update_description_query(messages)
+
+        if not deadline_info.get('old_description'):
+            response['text'] = 'Please provide a specific description of the deadline you want to update.'
+            return
+
+        deadline_ids = gpt.filter_deadlines_query(deadlines, deadline_info['old_description']).get('ids', [])
+
+        # Check if description provided exists in the database
+        if not deadline_ids:
+            response['text'] = 'No deadlines matched your query.'
+            return
+
+        if len(deadline_ids) > 1:
+            response['text'] = ('Multiple deadlines matched your query. Please provide a more specific description of '
+                                'the deadline you want to update.')
+            return
+
+        deadline = db.fetch_deadlines_query_by_ids(deadline_ids)[0]
+        delete_info = gpt.extract_delete_reminder_query(messages)
+
+        if not delete_info.get('reminder_time'):
+            response['text'] = 'Please provide a reminder time for the reminder you want to delete.'
+            return
+
+        reminder_time = datetime.datetime.fromisoformat(delete_info['reminder_time'])
+        if reminder_time < datetime.datetime.now():
+            response['text'] = 'Cannot delete reminder from the past.'
+            return
+
+        if not delete_info.get('confirmation'):
+            response['text'] = (f'Are you sure to delete reminder:'
+                                f'```\n{create_reminder_table([(deadline[1], [reminder_time])])}```')
+            response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
+            return
+
+        reminder = db.fetch_reminder_query(deadline[0], reminder_time)
+        if not reminder:
+            reminders = db.fetch_reminders_query_by_deadline_ids([deadline[0]])
+            response['text'] = (f'Cannot delete reminder as reminder does not exist\. Please provide the specific '
+                                f'reminder time you want to delete from the following reminders:'
+                                f'```\n{create_reminder_table(reminders)}```')
+            response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
+            return
+
+        db.delete_reminder_query(reminder[0])
+        response['text'] = 'Deleted reminder.'
 
     def converse():
         response['text'] = gpt.converse_query(messages, update.message.from_user.username)
