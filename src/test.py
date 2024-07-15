@@ -85,6 +85,30 @@ class DbQueryTest(unittest.TestCase):
         self.db.delete_deadlines_query([deadline[0] for deadline in db_deadlines])
         self.assertEqual(self.db.fetch_deadlines_query(self.chat_id), [])
 
+    def test_reminder(self):
+        created_deadlines = [
+            ('Orbital Milestone Submission', datetime.date(2100, 6, 15)),
+            ('CS2030S Lab 3 Submission', datetime.date(2100, 7, 10))]
+
+        for deadline in created_deadlines:
+            self.db.create_deadline_query(self.chat_id, deadline[0], deadline[1])
+
+        db_deadlines = self.db.fetch_deadlines_query(self.chat_id)
+        reminder_datetime = datetime.datetime(2100, 6, 14, 0, 0, 0)
+        self.db.create_reminders_query(db_deadlines[0][0], reminder_datetime)
+        self.assertEqual(created_deadlines[0], self.db.fetch_reminders_query(reminder_datetime)[0][2:])
+        self.assertEqual(1, len(self.db.fetch_reminders_query_by_deadline_ids([db_deadlines[0][0]])))
+
+        db_reminder = self.db.fetch_reminder_query(db_deadlines[0][0], reminder_datetime)
+        self.assertEqual(reminder_datetime, db_reminder[2])
+
+        new_reminder_datetime = datetime.datetime(2100, 6, 13, 11, 20, 0)
+        self.db.update_reminder_query(db_reminder[0], new_reminder_datetime)
+        self.assertEqual(new_reminder_datetime, self.db.fetch_reminder_query(db_deadlines[0][0], new_reminder_datetime)[2])
+
+        self.db.delete_reminder_query(db_reminder[0])
+        self.assertIsNone(self.db.fetch_reminder_query(db_deadlines[0][0], new_reminder_datetime))
+
 
 class GPTQueryTest(unittest.TestCase):
     @classmethod
