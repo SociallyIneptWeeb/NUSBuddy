@@ -109,32 +109,9 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
 
     def update_deadline():
-        deadlines = db.fetch_deadlines_query(chat_id)
-
-        if not deadlines:
-            response['text'] = 'There are no deadlines in the database to update.'
+        deadline = extract_deadline()
+        if not deadline:
             return
-
-        # Extract description of the deadline to be updated
-        deadline_info = gpt.extract_update_description_query(messages)
-
-        if not deadline_info.get('old_description'):
-            response['text'] = 'Please provide a specific description of the deadline you want to update.'
-            return
-
-        deadline_ids = gpt.filter_deadlines_query(deadlines, deadline_info['old_description']).get('ids', [])
-
-        # Check if description provided exists in the database
-        if not deadline_ids:
-            response['text'] = 'No deadlines matched your query.'
-            return
-
-        if len(deadline_ids) > 1:
-            response['text'] = ('Multiple deadlines matched your query. Please provide a more specific description of '
-                                'the deadline you want to update.')
-            return
-
-        deadline = db.fetch_deadlines_query_by_ids(deadline_ids)[0]
 
         # Extract new description or new due date of the deadline
         update_info = gpt.extract_update_info_query(messages)
@@ -166,12 +143,16 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         if new_date != deadline[2]:
             old_reminder = db.fetch_reminder_query(deadline[0], datetime.datetime.combine(deadline[2], datetime.time(8)))
             new_reminder_time = datetime.datetime.combine(new_date, datetime.time(8))
-            if old_reminder:
-                db.update_reminder_query(old_reminder[0], new_reminder_time)
-                response['text'] += f' Reminder has been updated to {new_reminder_time.strftime("%a %d %b %Y, %H:%M")}.'
-            else:
-                db.create_reminders_query(deadline[0], new_reminder_time)
-                response['text'] += f' Reminder has been created on {new_reminder_time.strftime("%a %d %b %Y, %H:%M")}.'
+
+            if new_reminder_time > datetime.datetime.now():
+                if old_reminder:
+                    db.update_reminder_query(old_reminder[0], new_reminder_time)
+                    response['text'] += f' Reminder has been updated to {new_reminder_time.strftime("%a %d %b %Y, %H:%M")}.'
+                else:
+                    db.create_reminders_query(deadline[0], new_reminder_time)
+                    response['text'] += f' Reminder has been created on {new_reminder_time.strftime("%a %d %b %Y, %H:%M")}.'
+            elif old_reminder:
+                db.delete_reminder_query(old_reminder[0])
 
     def delete_deadline():
         deadlines = db.fetch_deadlines_query(chat_id)
@@ -197,26 +178,11 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         response['text'] = f'Deleted {len(deleted)} deadlines.'
 
     def create_reminder():
+        deadline = extract_deadline()
+        if not deadline:
+            return
+
         reminder = gpt.create_reminder_query(messages)
-
-        if not reminder.get('deadline_description'):
-            response['text'] = 'Please provide a specific description of the deadline you want to be reminded.'
-            return
-
-        deadlines = db.fetch_deadlines_query(chat_id)
-        deadline_ids = gpt.filter_deadlines_query(deadlines, reminder['deadline_description']).get('ids', [])
-
-        # Check if description provided exists in the database
-        if not deadline_ids:
-            response['text'] = 'No deadlines matched your query.'
-            return
-
-        if len(deadline_ids) > 1:
-            response['text'] = ('Multiple deadlines matched your query. Please provide a more specific description of '
-                                'the deadline you want to reminded.')
-            return
-
-        deadline = db.fetch_deadlines_query_by_ids(deadline_ids)[0]
 
         if not reminder.get('reminder_time'):
             response['text'] = (f'Please provide a specific date and time you want to be reminded of '
@@ -265,32 +231,9 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         response['parse_mode'] = constants.ParseMode.MARKDOWN_V2
 
     def update_reminder():
-        deadlines = db.fetch_deadlines_query(chat_id)
-
-        if not deadlines:
-            response['text'] = 'There are no deadlines in the database to update.'
+        deadline = extract_deadline()
+        if not deadline:
             return
-
-        # Extract description of the deadline to be updated
-        deadline_info = gpt.extract_update_description_query(messages)
-
-        if not deadline_info.get('old_description'):
-            response['text'] = 'Please provide a specific description of the deadline you want to update.'
-            return
-
-        deadline_ids = gpt.filter_deadlines_query(deadlines, deadline_info['old_description']).get('ids', [])
-
-        # Check if description provided exists in the database
-        if not deadline_ids:
-            response['text'] = 'No deadlines matched your query.'
-            return
-
-        if len(deadline_ids) > 1:
-            response['text'] = ('Multiple deadlines matched your query. Please provide a more specific description of '
-                                'the deadline you want to update.')
-            return
-
-        deadline = db.fetch_deadlines_query_by_ids(deadline_ids)[0]
 
         # Extract old and new reminder times
         update_info = gpt.extract_update_reminder_query(messages)
@@ -336,32 +279,10 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         response['text'] = 'Updated reminder.'
 
     def delete_reminder():
-        deadlines = db.fetch_deadlines_query(chat_id)
-
-        if not deadlines:
-            response['text'] = 'There are no deadlines in the database to update.'
+        deadline = extract_deadline()
+        if not deadline:
             return
 
-        # Extract description of the deadline to be updated
-        deadline_info = gpt.extract_update_description_query(messages)
-
-        if not deadline_info.get('old_description'):
-            response['text'] = 'Please provide a specific description of the deadline you want to update.'
-            return
-
-        deadline_ids = gpt.filter_deadlines_query(deadlines, deadline_info['old_description']).get('ids', [])
-
-        # Check if description provided exists in the database
-        if not deadline_ids:
-            response['text'] = 'No deadlines matched your query.'
-            return
-
-        if len(deadline_ids) > 1:
-            response['text'] = ('Multiple deadlines matched your query. Please provide a more specific description of '
-                                'the deadline you want to update.')
-            return
-
-        deadline = db.fetch_deadlines_query_by_ids(deadline_ids)[0]
         delete_info = gpt.extract_delete_reminder_query(messages)
 
         if not delete_info.get('reminder_time'):
@@ -393,6 +314,33 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
 
     def converse():
         response['text'] = gpt.converse_query(messages, update.message.from_user.username)
+
+    def extract_deadline():
+        deadlines = db.fetch_deadlines_query(chat_id)
+
+        if not deadlines:
+            response['text'] = 'There are no deadlines in the database to update.'
+            return
+
+        deadline_info = gpt.extract_deadline_description_query(messages)
+
+        if not deadline_info.get('old_deadline_description'):
+            response['text'] = 'Please provide a specific description of the deadline you want to update.'
+            return
+
+        deadline_ids = gpt.filter_deadlines_query(deadlines, deadline_info['old_deadline_description']).get('ids', [])
+
+        # Check if description provided exists in the database
+        if not deadline_ids:
+            response['text'] = 'No deadlines matched your query.'
+            return
+
+        if len(deadline_ids) > 1:
+            response['text'] = ('Multiple deadlines matched your query. Please provide a more specific description of '
+                                'the deadline you want to update.')
+            return
+
+        return db.fetch_deadlines_query_by_ids(deadline_ids)[0]
 
     db: PostgresDb = context.bot_data['db']
     gpt: GPT = context.bot_data['gpt']
@@ -460,7 +408,6 @@ def create_reminder_table(reminders: list[tuple[str, list[datetime]]]) -> str:
     return table.get_string()
 
 
-# TODO: Add custom reminder times
 async def reminder_callback(context: CallbackContext):
     db: PostgresDb = context.bot_data['db']
     deadlines = db.fetch_reminders_query(datetime.datetime.now().replace(microsecond=0, second=0))

@@ -1,9 +1,0 @@
-Given the user's intention to update a deadline or reminder, extract the description of the deadline to be updated and output in a json format.
-The json object should only have the "old_description" key.
-
-Example output:
-{
-    "old_description": "CS1101S Project Submission"
-}
-
-If "old_description" information is missing or not specific, fill in the value as null.

@@ -52,8 +52,8 @@ class FilterDeadlinesType(TypedDict):
     ids: list[int]
 
 
-class UpdateDescriptionType(TypedDict):
-    old_description: str
+class DeadlineDescriptionType(TypedDict):
+    old_deadline_description: str
 
 
 class UpdateInfoType(TypedDict):
@@ -79,7 +79,6 @@ class ReminderDeleteType(TypedDict):
     confirmation: bool
 
 
-# TODO: Factorise into subclasses
 class GPT:
     def __init__(self):
         self.llm = OpenAI(api_key=getenv('OPENAI_KEY'))
@@ -145,8 +144,8 @@ class GPT:
         messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': description}]
         return json.loads(self.query(messages, json=True))
 
-    def extract_update_description_query(self, messages: list[GPTMessageType]) -> UpdateDescriptionType:
-        with open(f'{PROMPT_DIR}/extract_update_description.txt') as infile:
+    def extract_deadline_description_query(self, messages: list[GPTMessageType]) -> DeadlineDescriptionType:
+        with open(f'{PROMPT_DIR}/extract_deadline_description.txt') as infile:
             prompt = infile.read()
 
         messages = messages.copy()

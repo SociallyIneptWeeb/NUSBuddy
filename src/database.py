@@ -5,7 +5,6 @@ from psycopg2 import sql
 from datetime import datetime, date
 
 
-# TODO: Add new reminders table to handle custom reminders
 class PostgresDb:
     def __init__(self, db: str, host: str, port: int, user: str, password: str):
         self.db = db
