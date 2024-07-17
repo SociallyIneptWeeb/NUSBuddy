@@ -102,6 +102,13 @@ class GPT:
 
         return response
 
+    def response_query(self, intention: IntentionType, message: str) -> str:
+        with open(f'{PROMPT_DIR}/response.txt') as infile:
+            prompt = infile.read() % {'intention': intention['action'].name + ' ' + intention['target']}
+
+        messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': message}]
+        return self.query(messages)
+
     def converse_query(self, messages: list[GPTMessageType], username: str) -> str:
         now = datetime.now().strftime('%I:%M%p on %B %d, %Y')
         with open(f'{PROMPT_DIR}/conversation.txt') as infile:

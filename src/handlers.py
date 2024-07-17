@@ -382,6 +382,9 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
         converse()
 
     if response['text']:
+        if not response['parse_mode']:
+            response['text'] = gpt.response_query(intention, response['text'])
+
         db.create_message_query(chat_id, response['text'], False)
         await update.effective_message.reply_text(
             response['text'],
