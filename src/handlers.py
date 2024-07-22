@@ -78,10 +78,12 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
             return
 
         deadline_id = db.create_deadline_query(chat_id, deadline['description'], due_date)
-        reminder_timestamp = datetime.datetime.combine(due_date, datetime.time(8))
-        db.create_reminders_query(deadline_id, reminder_timestamp)
-        response['text'] = (f'Your deadline has been saved. You will be reminded at '
-                            f'{reminder_timestamp.strftime("%a %d %b %Y, %H:%M")}')
+        reminder_timestamp = datetime.datetime.combine(due_date, datetime.time(8)) - datetime.timedelta(days=1)
+        response['text'] = 'Your deadline has been saved.'
+
+        if reminder_timestamp > datetime.datetime.now():
+            db.create_reminders_query(deadline_id, reminder_timestamp)
+            response['text'] += f' You will be reminded at {reminder_timestamp.strftime("%a %d %b %Y, %H:%M")}'
 
     def read_deadline():
         deadline_info = gpt.extract_fetch_info_query(user_msg)
@@ -141,8 +143,10 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE, user_
 
         # Update old reminder for deadline at 8am to new deadline if due date has changed
         if new_date != deadline[2]:
-            old_reminder = db.fetch_reminder_query(deadline[0], datetime.datetime.combine(deadline[2], datetime.time(8)))
-            new_reminder_time = datetime.datetime.combine(new_date, datetime.time(8))
+            old_reminder = db.fetch_reminder_query(
+                deadline[0],
+                datetime.datetime.combine(deadline[2], datetime.time(8)) - datetime.timedelta(days=1))
+            new_reminder_time = datetime.datetime.combine(new_date, datetime.time(8)) - datetime.timedelta(days=1)
 
             if new_reminder_time > datetime.datetime.now():
                 if old_reminder:
