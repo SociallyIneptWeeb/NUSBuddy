@@ -85,7 +85,7 @@ class GPT:
 
     def query(self, messages: list, json: Optional[bool] = False) -> str:
         completion = self.llm.chat.completions.create(
-            model='gpt-3.5-turbo',
+            model='gpt-4o-mini',
             messages=messages,
             response_format=ResponseFormat(type='json_object') if json else ResponseFormat(type='text')
         )
