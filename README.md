@@ -8,7 +8,7 @@ For those who want to set up their own personal Telegram bot.
 
 ### Install Git and Python
 
-Follow the instructions [here](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) to install Git on your computer. Also follow this [guide](https://realpython.com/installing-python/) to install Python if you haven't already.
+Follow the instructions [here](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) to install Git on your computer. Also follow this [guide](https://realpython.com/installing-python/) to install Python >= 3.9 if you haven't already.
 
 ### Clone repository
 
@@ -30,13 +30,14 @@ Your token will look something like this:
 
 ### Environment variables
 
-1. Rename the [.env.sample](.env.sample) file to `.env`
+1. Rename the [.env.sample](.env.sample) file to `.env`. If you have another Postgres database running on your machine, you can update the `POSTGRES_PORT` in the `.env` file to point to another unused port.
 2. Update the `TELEGRAM_TOKEN` with the token from the previous step.
 3. Update the `OPENAI_KEY` with an API key from OpenAI on this [page](https://platform.openai.com/api-keys).
 
 ### Docker Compose
 
-Ensure you have Docker Compose installed, then run the following command to create and run the Postgres database in a docker container.
+Ensure that the [init.sql](db/init.sql) file permissions allow users to read the file. 
+Also ensure you have Docker Compose installed, then run the following command to create and run the Postgres database in a docker container.
 
 `docker-compose up -d`
 

@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import sys
 from os import getenv
 
 from dotenv import load_dotenv
@@ -57,6 +58,7 @@ class Telebot:
 
 
 if __name__ == '__main__':
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     bot = Telebot()
     bot.run()

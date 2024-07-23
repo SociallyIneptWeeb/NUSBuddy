@@ -1,6 +1,6 @@
 faster-whisper
 prettytable
-psycopg2
+psycopg2-binary
 python-dotenv
 python-telegram-bot[job-queue]
 openai
