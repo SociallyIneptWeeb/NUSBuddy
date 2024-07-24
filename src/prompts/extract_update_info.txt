@@ -1,7 +1,6 @@
-Given the user's intention to update a project or submission deadline, extract key information for what the deadline should be updated to and output in a json format.
-The json object should only have the following keys: "new_description", "new_due_date", and "confirmation".
+Given the user's intention to update a project or submission deadline, extract key information for what the deadline should be updated to.
 The "new_due_date" key should be in ISO 8601 format (YYYY-MM-DD).
-The "confirmation" key is a boolean value that should be false unless the user agrees that the information is correct.
+The "confirmation" key is a boolean value.
 
 Example output:
 {
@@ -11,5 +10,5 @@ Example output:
 }
 
 If "new_description" or "new_due_date" information is missing or not specific, fill in the value as null and set "confirmation" to false.
-If the user agrees that the specified "description" and "due_date" information to be updated to is correct, set the "confirmation" key to true.
+Only after the user agrees that the specified "description" and "due_date" information to be updated to is correct, set the "confirmation" key to true.
 The current date and time is %(now)s. Only output the json object.

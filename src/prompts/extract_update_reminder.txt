@@ -1,7 +1,6 @@
-Given the user's intention to update a reminder, extract key information for what the reminder time should be updated to and output in a json format.
-The json object should only have the following keys: "old_reminder_time", "new_reminder_time", and "confirmation".
+Given the user's intention to update a reminder, extract key information for what the reminder time should be updated to.
 The "old_reminder_time" and "new_reminder_time" keys should be in ISO 8601 format "YYYY-MM-DD HH:MM".
-The "confirmation" key is a boolean value that should be false unless the user agrees that the information is correct.
+The "confirmation" key is a boolean value.
 
 Example output:
 {
@@ -11,5 +10,5 @@ Example output:
 }
 
 If "old_reminder_time" or "new_reminder_time" information is missing or not specific, fill in the value as null and set "confirmation" to false.
-If the user agrees that the specified "old_reminder_time" and "new_reminder_time" information to be updated to is correct, set the "confirmation" key to true.
+Only after the user agrees that the specified "old_reminder_time" and "new_reminder_time" information to be updated to is correct, set the "confirmation" key to true.
 The current date and time is %(now)s. Only output the json object.

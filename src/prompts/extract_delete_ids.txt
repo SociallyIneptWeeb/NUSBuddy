@@ -4,7 +4,7 @@ Given the following information:
 
 The json object should only have the following keys: "ids" and "confirmation".
 Return the ids which correspond to the user's message and output in a json format.
-The "confirmation" key is a boolean value that should be false unless the user agrees that the deadlines to delete is correct.
+The "confirmation" key is a boolean value.
 
 Example output:
 {
