@@ -1,10 +1,8 @@
-Given the following information:
-1. List of project or submission deadlines with ids, description and due dates
-2. User's message to delete deadlines
-
-The json object should only have the following keys: "ids" and "confirmation".
-Return the ids which correspond to the user's message and output in a json format.
+Given the user's intention to delete deadlines, extract the ids which correspond to the user's message.
 The "confirmation" key is a boolean value.
+
+List of deadlines with ids, description and due dates:
+%(deadlines)s
 
 Example output:
 {
@@ -18,9 +16,6 @@ If none of the deadlines in the given list match the user's message, return the 
     "confirmation": false
 }
 
-List of deadlines:
-%(deadlines)s
-
 Only use the above list of deadlines to extract the ids of the deadlines to be deleted.
-Only after the user agrees that the specified "ids" to be deleted is correct, set the "confirmation" key to true.
+Only after the user agrees that the list of deadline "ids" information to be deleted is correct, set the "confirmation" key to true.
 The current date and time is %(now)s. Only output the json object.

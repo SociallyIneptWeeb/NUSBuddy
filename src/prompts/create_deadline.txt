@@ -1,4 +1,4 @@
-Given the user's latest messages to create a project or submission deadline, extract key information.
+Given the user's intention to create a project or submission deadline, extract key information.
 The "due_date" key should be in ISO 8601 format (YYYY-MM-DD).
 The "confirmation" key is a boolean value.
 
